@@ -55,6 +55,26 @@ export default async function LeagueDetailPage({
     .filter((m) => m.status === "pending")
     .map((m) => ({ id: m.id, username: m.profiles?.username ?? "utente" }));
 
+  // Standings: sum of daily total_points per member within this league.
+  const usernameByUser = new Map(
+    approved.map((m) => [m.user_id, m.profiles?.username ?? "utente"]),
+  );
+  const { data: scoreData } = await supabase
+    .from("daily_scores")
+    .select("user_id, total_points")
+    .eq("league_id", id);
+  const totals = new Map<string, number>();
+  for (const row of scoreData ?? []) {
+    totals.set(row.user_id, (totals.get(row.user_id) ?? 0) + row.total_points);
+  }
+  const standings = approved
+    .map((m) => ({
+      userId: m.user_id,
+      username: usernameByUser.get(m.user_id) ?? "utente",
+      points: totals.get(m.user_id) ?? 0,
+    }))
+    .sort((a, b) => b.points - a.points);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -78,6 +98,30 @@ export default async function LeagueDetailPage({
           <PendingRequests leagueId={league.id} members={pending} />
         </section>
       )}
+
+      <section>
+        <h2 className="mb-3 text-lg font-semibold">Classifica della lega</h2>
+        <Card className="p-0">
+          <ul className="divide-y divide-border">
+            {standings.map((s, i) => (
+              <li
+                key={s.userId}
+                className={`flex items-center justify-between px-5 py-3 ${
+                  s.userId === user.id ? "bg-primary/10" : ""
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="tabular-nums w-6 text-right text-sm text-muted-foreground">
+                    {i + 1}
+                  </span>
+                  <span className="font-medium">@{s.username}</span>
+                </div>
+                <span className="tabular-nums font-semibold">{s.points} pt</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </section>
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">
