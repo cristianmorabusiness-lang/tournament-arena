@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
+import { PendingRequests } from "@/components/leagues/PendingRequests";
 import { createClient } from "@/lib/supabase/server";
 import type { League, MemberRole, MemberStatus } from "@/lib/types";
 
@@ -50,6 +51,9 @@ export default async function LeagueDetailPage({
     .order("created_at", { ascending: true });
   const members = (memberData ?? []) as unknown as MemberRow[];
   const approved = members.filter((m) => m.status === "approved");
+  const pending = members
+    .filter((m) => m.status === "pending")
+    .map((m) => ({ id: m.id, username: m.profiles?.username ?? "utente" }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,6 +69,15 @@ export default async function LeagueDetailPage({
         </div>
         {isAdmin && <Badge tone="primary">Sei l&apos;admin</Badge>}
       </div>
+
+      {isAdmin && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold">
+            Richieste in attesa ({pending.length})
+          </h2>
+          <PendingRequests leagueId={league.id} members={pending} />
+        </section>
+      )}
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">
