@@ -16,8 +16,8 @@ const schema = z.object({
 
 /**
  * Upserts the current user's prediction for a match. The time lock is enforced
- * by RLS (predictions cannot be written once the match day has locked), so a
- * blocked write surfaces as an error here.
+ * by RLS (predictions cannot be written once the match locks, 5 minutes before
+ * its kickoff), so a blocked write surfaces as an error here.
  */
 export async function savePrediction(
   _prev: PredictionState,
@@ -50,7 +50,7 @@ export async function savePrediction(
 
   if (error) {
     return {
-      error: "Pronostico bloccato: la giornata è già iniziata.",
+      error: "Pronostico bloccato: mancano meno di 5 minuti al via.",
       matchId: parsed.data.matchId,
     };
   }

@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { MatchRow, type MatchRowData } from "@/components/matches/MatchRow";
 import { createClient } from "@/lib/supabase/server";
-import { groupByDay, isDayLocked } from "@/lib/matchday";
+import { groupByDay, isMatchLocked, type MatchDayGroup } from "@/lib/matchday";
 
 type Row = {
   id: string;
@@ -16,6 +15,12 @@ type Row = {
   away: { name: string; flag_url: string | null } | null;
 };
 
+type Pred = {
+  pred_home: number | null;
+  pred_away: number | null;
+  points: number | null;
+};
+
 function dateLabel(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString("it-IT", {
     weekday: "long",
@@ -23,6 +28,56 @@ function dateLabel(date: string): string {
     month: "long",
     timeZone: "UTC",
   });
+}
+
+function DayGroups({
+  groups,
+  predByMatch,
+  now,
+}: {
+  groups: MatchDayGroup<Row>[];
+  predByMatch: Map<string, Pred>;
+  now: Date;
+}) {
+  return (
+    <div className="flex flex-col gap-5">
+      {groups.map((group) => (
+        <section key={group.date}>
+          <h3 className="mb-2 font-semibold capitalize text-muted-foreground">
+            {dateLabel(group.date)}
+          </h3>
+          <Card className="p-0">
+            <div className="divide-y divide-border">
+              {group.matches.map((m) => {
+                const pred = predByMatch.get(m.id);
+                const row: MatchRowData = {
+                  id: m.id,
+                  homeName: m.home?.name ?? "TBD",
+                  awayName: m.away?.name ?? "TBD",
+                  homeFlag: m.home?.flag_url ?? null,
+                  awayFlag: m.away?.flag_url ?? null,
+                  kickoffAt: m.kickoff_at,
+                  status: m.status,
+                  homeScore: m.home_score,
+                  awayScore: m.away_score,
+                  predHome: pred?.pred_home ?? null,
+                  predAway: pred?.pred_away ?? null,
+                  points: pred?.points ?? null,
+                };
+                return (
+                  <MatchRow
+                    key={m.id}
+                    match={row}
+                    locked={isMatchLocked(m.kickoff_at, now)}
+                  />
+                );
+              })}
+            </div>
+          </Card>
+        </section>
+      ))}
+    </div>
+  );
 }
 
 export default async function MatchesPage() {
@@ -44,8 +99,11 @@ export default async function MatchesPage() {
     .from("predictions")
     .select("match_id, pred_home, pred_away, points")
     .eq("user_id", user.id);
-  const predByMatch = new Map(
-    (predData ?? []).map((p) => [p.match_id, p]),
+  const predByMatch = new Map<string, Pred>(
+    (predData ?? []).map((p) => [
+      p.match_id,
+      { pred_home: p.pred_home, pred_away: p.pred_away, points: p.points },
+    ]),
   );
 
   if (matches.length === 0) {
@@ -60,49 +118,37 @@ export default async function MatchesPage() {
     );
   }
 
-  const groups = groupByDay(matches);
+  const now = new Date();
+  // A match is "da giocare" while it's still open (locks 5 min before kickoff);
+  // once locked it moves to "giocate" — most recent day first.
+  const upcomingGroups = groupByDay(
+    matches.filter((m) => !isMatchLocked(m.kickoff_at, now)),
+  );
+  const playedGroups = groupByDay(
+    matches.filter((m) => isMatchLocked(m.kickoff_at, now)),
+  ).reverse();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <h1 className="text-2xl font-bold">Pronostici</h1>
 
-      {groups.map((group) => {
-        const locked = isDayLocked(group.lockAt);
-        return (
-          <section key={group.date}>
-            <div className="mb-2 flex items-center gap-2">
-              <h2 className="font-semibold capitalize">{dateLabel(group.date)}</h2>
-              {locked ? (
-                <Badge tone="neutral">Bloccata</Badge>
-              ) : (
-                <Badge tone="success">Aperta</Badge>
-              )}
-            </div>
-            <Card className="p-0">
-              <div className="divide-y divide-border">
-                {group.matches.map((m) => {
-                  const pred = predByMatch.get(m.id);
-                  const row: MatchRowData = {
-                    id: m.id,
-                    homeName: m.home?.name ?? "TBD",
-                    awayName: m.away?.name ?? "TBD",
-                    homeFlag: m.home?.flag_url ?? null,
-                    awayFlag: m.away?.flag_url ?? null,
-                    kickoffAt: m.kickoff_at,
-                    status: m.status,
-                    homeScore: m.home_score,
-                    awayScore: m.away_score,
-                    predHome: pred?.pred_home ?? null,
-                    predAway: pred?.pred_away ?? null,
-                    points: pred?.points ?? null,
-                  };
-                  return <MatchRow key={m.id} match={row} locked={locked} />;
-                })}
-              </div>
-            </Card>
-          </section>
-        );
-      })}
+      <div>
+        <h2 className="mb-3 text-lg font-bold">Partite da giocare</h2>
+        {upcomingGroups.length > 0 ? (
+          <DayGroups groups={upcomingGroups} predByMatch={predByMatch} now={now} />
+        ) : (
+          <Alert variant="info">
+            Nessuna partita aperta ai pronostici al momento.
+          </Alert>
+        )}
+      </div>
+
+      {playedGroups.length > 0 && (
+        <div>
+          <h2 className="mb-3 text-lg font-bold">Partite giocate</h2>
+          <DayGroups groups={playedGroups} predByMatch={predByMatch} now={now} />
+        </div>
+      )}
     </div>
   );
 }
