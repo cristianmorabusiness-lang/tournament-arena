@@ -6,7 +6,18 @@ import { PendingRequests } from "@/components/leagues/PendingRequests";
 import { RankDelta } from "@/components/RankDelta";
 import { createClient } from "@/lib/supabase/server";
 import { flagForCode } from "@/lib/nationalTeams";
+import { dayKey } from "@/lib/matchday";
 import type { League, MemberRole, MemberStatus } from "@/lib/types";
+
+type DayMatch = {
+  id: string;
+  kickoff_at: string;
+  status: string;
+  home_score: number | null;
+  away_score: number | null;
+  home: { name: string; flag_url: string | null } | null;
+  away: { name: string; flag_url: string | null } | null;
+};
 
 type MemberRow = {
   id: string;
@@ -66,12 +77,56 @@ export default async function LeagueDetailPage({
   );
   const { data: scoreData } = await supabase
     .from("daily_scores")
-    .select("user_id, total_points")
+    .select("user_id, match_date, total_points, bonus_points")
     .eq("league_id", id);
+  const dailyRows = scoreData ?? [];
   const totals = new Map<string, number>();
-  for (const row of scoreData ?? []) {
+  for (const row of dailyRows) {
     totals.set(row.user_id, (totals.get(row.user_id) ?? 0) + row.total_points);
   }
+
+  // Bacheca: recap of the most recent scored matchday in this league.
+  const latestDate = dailyRows.reduce<string | null>(
+    (acc, r) => (acc === null || r.match_date > acc ? r.match_date : acc),
+    null,
+  );
+  const dayBoard = latestDate
+    ? dailyRows
+        .filter((r) => r.match_date === latestDate)
+        .map((r) => ({
+          userId: r.user_id,
+          username: usernameByUser.get(r.user_id) ?? "utente",
+          country: countryByUser.get(r.user_id) ?? null,
+          points: r.total_points,
+          bonus: r.bonus_points,
+        }))
+        .filter((r) => usernameByUser.has(r.userId))
+        .sort((a, b) => b.points - a.points || (a.userId < b.userId ? -1 : 1))
+    : [];
+  const dayTop = dayBoard.length ? dayBoard[0].points : 0;
+
+  // Results of that matchday (finished matches on the same UTC day).
+  let dayResults: DayMatch[] = [];
+  if (latestDate) {
+    const { data: matchData } = await supabase
+      .from("matches")
+      .select(
+        "id, kickoff_at, status, home_score, away_score, home:teams!matches_home_team_id_fkey(name, flag_url), away:teams!matches_away_team_id_fkey(name, flag_url)",
+      )
+      .eq("status", "FINISHED")
+      .order("kickoff_at");
+    dayResults = ((matchData ?? []) as unknown as DayMatch[]).filter(
+      (m) => dayKey(m.kickoff_at) === latestDate,
+    );
+  }
+  const boardDateLabel = latestDate
+    ? new Date(`${latestDate}T00:00:00Z`).toLocaleDateString("it-IT", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        timeZone: "UTC",
+      })
+    : "";
 
   // Rank history (from the last scoring run) for the position-change indicator.
   const { data: standingData } = await supabase
@@ -115,6 +170,80 @@ export default async function LeagueDetailPage({
             Richieste in attesa ({pending.length})
           </h2>
           <PendingRequests leagueId={league.id} members={pending} />
+        </section>
+      )}
+
+      {latestDate && (
+        <section>
+          <h2 className="mb-1 text-lg font-semibold">Bacheca</h2>
+          <p className="mb-3 text-sm capitalize text-muted-foreground">
+            Ultima giornata · {boardDateLabel}
+          </p>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {dayResults.length > 0 && (
+              <Card className="p-0">
+                <p className="border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Risultati
+                </p>
+                <ul className="divide-y divide-border">
+                  {dayResults.map((m) => (
+                    <li
+                      key={m.id}
+                      className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {m.home?.flag_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={m.home.flag_url} alt="" className="size-4 rounded-sm object-cover" />
+                        )}
+                        {m.home?.name ?? "TBD"}
+                      </span>
+                      <span className="tabular-nums font-semibold">
+                        {m.home_score}-{m.away_score}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        {m.away?.name ?? "TBD"}
+                        {m.away?.flag_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={m.away.flag_url} alt="" className="size-4 rounded-sm object-cover" />
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            <Card className="p-0">
+              <p className="border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Punti di giornata
+              </p>
+              <ul className="divide-y divide-border">
+                {dayBoard.map((d) => (
+                  <li
+                    key={d.userId}
+                    className={`flex items-center justify-between px-4 py-2.5 text-sm ${
+                      d.userId === user.id ? "bg-primary/10" : ""
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      {flagForCode(d.country) && (
+                        <span className="text-base leading-none" aria-hidden>
+                          {flagForCode(d.country)}
+                        </span>
+                      )}
+                      <span className="font-medium">@{d.username}</span>
+                      {d.points === dayTop && dayTop > 0 && (
+                        <Badge tone="primary">Migliore</Badge>
+                      )}
+                      {d.bonus > 0 && <Badge tone="success">+{d.bonus} bonus</Badge>}
+                    </span>
+                    <span className="tabular-nums font-semibold">{d.points} pt</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </div>
         </section>
       )}
 
