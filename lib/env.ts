@@ -27,6 +27,10 @@ export const publicEnv = {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     );
   },
+  /** VAPID public key for Web Push — safe to expose; empty string if unset. */
+  get vapidPublicKey() {
+    return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+  },
 };
 
 /** Server-only secrets. Never import this into client components. */
@@ -46,5 +50,19 @@ export const serverEnv = {
   /** Optional — used to authorize cron-triggered endpoints. */
   get cronSecret() {
     return process.env.CRON_SECRET;
+  },
+  /** Web Push (VAPID). Required only by the reminder cron. */
+  get vapidPublicKey() {
+    return required(
+      "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    );
+  },
+  get vapidPrivateKey() {
+    return required("VAPID_PRIVATE_KEY", process.env.VAPID_PRIVATE_KEY);
+  },
+  /** Contact used in the VAPID `subject` (mailto:). */
+  get vapidSubject() {
+    return process.env.VAPID_SUBJECT ?? "mailto:noreply@tournament-arena.app";
   },
 };

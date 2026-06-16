@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -26,6 +26,16 @@ export const metadata: Metadata = {
   title: "Tournament Arena — Pronostici Mondiali",
   description:
     "Sfida i tuoi amici con i pronostici dei Mondiali: crea leghe, indovina i risultati e scala la classifica globale.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Tournament Arena",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0f",
 };
 
 export default function RootLayout({

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
+import { PushToggle } from "@/components/PushToggle";
 import { createClient } from "@/lib/supabase/server";
+import { publicEnv } from "@/lib/env";
 import { flagForCode } from "@/lib/nationalTeams";
 import { dayKey } from "@/lib/matchday";
 
@@ -125,6 +127,12 @@ export default async function ProfilePage() {
         />
         <StatTile label="Miglior giornata" value={bestDayLabel} />
       </div>
+
+      {publicEnv.vapidPublicKey && (
+        <Card className="p-4">
+          <PushToggle vapidKey={publicEnv.vapidPublicKey} />
+        </Card>
+      )}
 
       {scored.length === 0 && (
         <p className="text-sm text-muted-foreground">
