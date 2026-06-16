@@ -7,7 +7,20 @@ export const maxDuration = 60;
 
 async function handle(request: Request) {
   if (!isCronAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Temporary diagnostic (no secret values exposed, only booleans/lengths).
+    const auth = request.headers.get("authorization") ?? "";
+    return NextResponse.json(
+      {
+        error: "Unauthorized",
+        debug: {
+          secretConfigured: Boolean(process.env.CRON_SECRET),
+          expectedSecretLen: (process.env.CRON_SECRET ?? "").length,
+          authHeaderPresent: auth.startsWith("Bearer "),
+          receivedSecretLen: auth.replace(/^Bearer /, "").length,
+        },
+      },
+      { status: 401 },
+    );
   }
   try {
     const result = await syncAll();
