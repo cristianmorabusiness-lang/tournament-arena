@@ -82,12 +82,21 @@ function isActive(pathname: string, href: string): boolean {
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+const Logo = ({ className = "" }: { className?: string }) => (
+  <span className={`text-lg font-bold tracking-tight ${className}`}>
+    Tournament{" "}
+    <span className="text-primary [text-shadow:0_0_18px_rgba(217,119,6,0.45)]">
+      Arena
+    </span>
+  </span>
+);
+
 export function AppHeader({ username }: { username?: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  // Close on Escape and lock scroll while the drawer is open. Navigation closes
-  // it via each link's onClick (see below), so no pathname effect is needed.
+  // Close on Escape and lock scroll while the full-screen menu is open.
+  // Navigation closes it via each link's onClick (no pathname effect needed).
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -100,129 +109,137 @@ export function AppHeader({ username }: { username?: string }) {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
-        <Link href="/dashboard" className="text-lg font-bold tracking-tight">
-          Tournament <span className="text-primary">Arena</span>
-        </Link>
+    <>
+      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
+          <Link href="/dashboard" aria-label="Tournament Arena">
+            <Logo />
+          </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 sm:flex">
-          {NAV.map((item) => {
-            const active = isActive(pathname, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-surface-2 text-foreground"
-                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="flex items-center gap-3">
-          {username && (
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              @{username}
-            </span>
-          )}
-          <form action={signout} className="hidden sm:block">
-            <Button variant="secondary" className="h-9 px-3 text-xs">
-              Esci
-            </Button>
-          </form>
-
-          {/* Mobile hamburger */}
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label="Apri menu"
-            aria-expanded={open}
-            className="-mr-1 inline-flex size-11 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-2 sm:hidden"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-6" aria-hidden>
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile drawer */}
-      <div
-        className={`fixed inset-0 z-50 sm:hidden ${open ? "" : "pointer-events-none"}`}
-        aria-hidden={!open}
-      >
-        {/* Scrim */}
-        <div
-          onClick={() => setOpen(false)}
-          className={`absolute inset-0 bg-black/50 transition-opacity duration-200 motion-reduce:transition-none ${
-            open ? "opacity-100" : "opacity-0"
-          }`}
-        />
-        {/* Panel */}
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Menu di navigazione"
-          className={`absolute right-0 top-0 flex h-full w-72 max-w-[80%] flex-col border-l border-border bg-surface shadow-xl transition-transform duration-200 ease-out motion-reduce:transition-none ${
-            open ? "translate-x-0" : "translate-x-full"
-          }`}
-        >
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <span className="text-sm font-medium text-muted-foreground">
-              {username ? `@${username}` : "Menu"}
-            </span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Chiudi menu"
-              className="inline-flex size-10 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-2"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-5" aria-hidden>
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
-            </button>
-          </div>
-
-          <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+          {/* Desktop nav */}
+          <nav className="hidden items-center gap-1 sm:flex">
             {NAV.map((item) => {
               const active = isActive(pathname, item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setOpen(false)}
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                     active
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-surface-2"
+                      ? "bg-surface-2 text-foreground"
+                      : "text-muted-foreground hover:bg-surface-2 hover:text-foreground"
                   }`}
                 >
-                  {item.icon}
                   {item.label}
                 </Link>
               );
             })}
           </nav>
 
-          {/* Logout — kept separate from navigation, at the bottom */}
-          <div className="border-t border-border p-3">
-            <form action={signout}>
-              <Button variant="danger" className="h-11 w-full">
+          <div className="flex items-center gap-3">
+            {username && (
+              <span className="hidden text-sm text-muted-foreground sm:inline">
+                @{username}
+              </span>
+            )}
+            <form action={signout} className="hidden sm:block">
+              <Button variant="secondary" className="h-9 px-3 text-xs">
                 Esci
               </Button>
             </form>
+
+            {/* Mobile hamburger */}
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              aria-label="Apri menu"
+              aria-expanded={open}
+              className="-mr-1 inline-flex size-11 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-2 sm:hidden"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-6" aria-hidden>
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
           </div>
         </div>
+      </header>
+
+      {/* Full-screen mobile menu — sibling of <header> so the header's
+          backdrop-blur doesn't become its containing block. */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        aria-hidden={!open}
+        className={`fixed inset-0 z-50 flex flex-col bg-background transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:hidden ${
+          open
+            ? "visible translate-y-0 opacity-100"
+            : "invisible pointer-events-none -translate-y-1 opacity-0"
+        }`}
+      >
+        {/* Brand glow */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(217,119,6,0.16),transparent_70%)]"
+        />
+
+        <div className="relative flex h-14 items-center justify-between border-b border-border px-4">
+          <Logo />
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Chiudi menu"
+            className="-mr-1 inline-flex size-11 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-2"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-6" aria-hidden>
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <nav className="relative flex flex-1 flex-col gap-1.5 overflow-y-auto p-4">
+          {NAV.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-base font-semibold transition-colors ${
+                  active
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground hover:bg-surface-2 active:bg-surface-2"
+                }`}
+              >
+                <span
+                  className={`flex size-10 items-center justify-center rounded-xl ${
+                    active ? "bg-primary/15 text-primary" : "bg-surface-2 text-muted-foreground"
+                  }`}
+                >
+                  {item.icon}
+                </span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="relative border-t border-border p-4">
+          {username && (
+            <p className="mb-3 px-1 text-sm text-muted-foreground">
+              Connesso come{" "}
+              <span className="font-medium text-foreground">@{username}</span>
+            </p>
+          )}
+          <form action={signout}>
+            <Button variant="danger" className="h-12 w-full text-base">
+              Esci
+            </Button>
+          </form>
+        </div>
       </div>
-    </header>
+    </>
   );
 }

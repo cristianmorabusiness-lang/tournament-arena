@@ -77,7 +77,7 @@ export default async function LeagueDetailPage({
   );
   const { data: scoreData } = await supabase
     .from("daily_scores")
-    .select("user_id, match_date, total_points, bonus_points")
+    .select("user_id, match_date, total_points, base_points, bonus_points")
     .eq("league_id", id);
   const dailyRows = scoreData ?? [];
   const totals = new Map<string, number>();
@@ -98,6 +98,7 @@ export default async function LeagueDetailPage({
           username: usernameByUser.get(r.user_id) ?? "utente",
           country: countryByUser.get(r.user_id) ?? null,
           points: r.total_points,
+          base: r.base_points,
           bonus: r.bonus_points,
         }))
         .filter((r) => usernameByUser.has(r.userId))
@@ -236,9 +237,17 @@ export default async function LeagueDetailPage({
                       {d.points === dayTop && dayTop > 0 && (
                         <Badge tone="primary">Migliore</Badge>
                       )}
-                      {d.bonus > 0 && <Badge tone="success">+{d.bonus} bonus</Badge>}
                     </span>
-                    <span className="tabular-nums font-semibold">{d.points} pt</span>
+                    <span className="flex flex-col items-end leading-tight">
+                      <span className="tabular-nums font-semibold">
+                        {d.points} pt
+                      </span>
+                      {d.bonus > 0 && (
+                        <span className="text-[11px] text-muted-foreground">
+                          {d.base} + {d.bonus} bonus
+                        </span>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>

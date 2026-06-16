@@ -28,6 +28,22 @@ function timeLabel(iso: string): string {
   });
 }
 
+/** Human-readable reason for the points awarded on a finished match. */
+function pointsReason(
+  predHome: number,
+  predAway: number,
+  realHome: number,
+  realAway: number,
+): string {
+  if (predHome === realHome && predAway === realAway) return "Risultato esatto · 5";
+  const signOk =
+    Math.sign(predHome - predAway) === Math.sign(realHome - realAway);
+  const diffOk = predHome - predAway === realHome - realAway;
+  if (signOk && diffOk) return "Segno + differenza · 3";
+  if (signOk) return "Segno corretto · 2";
+  return "Nessun punto";
+}
+
 function TeamFlag({ src }: { src: string | null }) {
   if (!src) return null;
   return (
@@ -93,15 +109,32 @@ export function MatchRow({
         )}
 
         {locked ? (
-          <div className="flex items-center gap-2">
-            <span className="tabular-nums rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm font-semibold">
-              {match.predHome ?? "–"} : {match.predAway ?? "–"}
-            </span>
-            {match.points !== null ? (
-              <Badge tone="primary">{match.points} pt</Badge>
-            ) : (
-              <Badge tone="neutral">Bloccato</Badge>
-            )}
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              <span className="tabular-nums rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm font-semibold">
+                {match.predHome ?? "–"} : {match.predAway ?? "–"}
+              </span>
+              {match.points !== null ? (
+                <Badge tone="primary">{match.points} pt</Badge>
+              ) : (
+                <Badge tone="neutral">Bloccato</Badge>
+              )}
+            </div>
+            {isFinished &&
+              match.points !== null &&
+              match.predHome !== null &&
+              match.predAway !== null &&
+              match.homeScore !== null &&
+              match.awayScore !== null && (
+                <span className="text-[11px] text-muted-foreground">
+                  {pointsReason(
+                    match.predHome,
+                    match.predAway,
+                    match.homeScore,
+                    match.awayScore,
+                  )}
+                </span>
+              )}
           </div>
         ) : (
           <form action={action} className="flex items-center gap-2">
