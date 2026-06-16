@@ -5,11 +5,17 @@ import { RankDelta } from "@/components/RankDelta";
 import { createClient } from "@/lib/supabase/server";
 import { flagForCode } from "@/lib/nationalTeams";
 
-type Row = {
+type ScoreEmbed = {
   total_points: number;
   rank: number | null;
   previous_rank: number | null;
-  profiles: { id: string; username: string; favorite_country: string | null } | null;
+};
+
+type ProfileRow = {
+  id: string;
+  username: string | null;
+  favorite_country: string | null;
+  global_scores: ScoreEmbed | ScoreEmbed[] | null;
 };
 
 // Cartoon crowns for the podium (gold / silver / bronze), shown next to the rank.
@@ -26,11 +32,33 @@ export default async function LeaderboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Drive the leaderboard from `profiles` (the source of truth for every
+  // registered user) and left-join the score, so newcomers appear immediately
+  // at 0 pt instead of only after the next scoring run populates global_scores.
   const { data } = await supabase
-    .from("global_scores")
-    .select("total_points, rank, previous_rank, profiles(id, username, favorite_country)")
-    .order("total_points", { ascending: false });
-  const rows = (data ?? []) as unknown as Row[];
+    .from("profiles")
+    .select("id, username, favorite_country, global_scores(total_points, rank, previous_rank)");
+  const profiles = (data ?? []) as unknown as ProfileRow[];
+
+  const rows = profiles
+    .map((p) => {
+      const gs = Array.isArray(p.global_scores)
+        ? p.global_scores[0]
+        : p.global_scores;
+      return {
+        id: p.id,
+        username: p.username,
+        favorite_country: p.favorite_country,
+        total_points: gs?.total_points ?? 0,
+        rank: gs?.rank ?? null,
+        previous_rank: gs?.previous_rank ?? null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.total_points - a.total_points ||
+        (a.username ?? "").localeCompare(b.username ?? ""),
+    );
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,16 +71,16 @@ export default async function LeaderboardPage() {
 
       {rows.length === 0 ? (
         <Alert variant="info">
-          La classifica è vuota: i punteggi vengono calcolati a partita conclusa.
+          Nessun giocatore registrato per ora.
         </Alert>
       ) : (
         <Card className="p-0">
           <ul className="divide-y divide-border">
             {rows.map((r, i) => {
-              const isMe = r.profiles?.id === user.id;
+              const isMe = r.id === user.id;
               return (
                 <li
-                  key={r.profiles?.id ?? i}
+                  key={r.id}
                   className={`flex items-center justify-between px-5 py-3 ${
                     isMe ? "bg-primary/10" : ""
                   }`}
@@ -73,13 +101,13 @@ export default async function LeaderboardPage() {
                         />
                       )}
                     </span>
-                    {flagForCode(r.profiles?.favorite_country) && (
+                    {flagForCode(r.favorite_country) && (
                       <span className="text-lg leading-none" aria-hidden>
-                        {flagForCode(r.profiles?.favorite_country)}
+                        {flagForCode(r.favorite_country)}
                       </span>
                     )}
                     <span className="font-medium">
-                      @{r.profiles?.username ?? "utente"}
+                      @{r.username ?? "utente"}
                       {isMe && (
                         <span className="ml-2 text-xs text-primary">(tu)</span>
                       )}
