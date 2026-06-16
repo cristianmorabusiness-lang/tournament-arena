@@ -58,8 +58,8 @@ export default function RulesPage() {
           <div className="flex items-center gap-3">
             <Badge tone="success">+2</Badge>
             <p className="text-sm">
-              Chi totalizza <strong>meno punti</strong> nella giornata riceve un
-              bonus di consolazione di 2 punti.
+              Tra <strong>chi ha pronosticato</strong> quel giorno, chi totalizza
+              meno punti riceve un bonus di consolazione di 2 punti.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -70,9 +70,10 @@ export default function RulesPage() {
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Il bonus viene assegnato solo quando tutte le partite della giornata
-            sono concluse. Vale dentro le leghe; la classifica globale conta solo
-            i punti puri da pronostico.
+            Il bonus richiede almeno due giocatori che hanno pronosticato ed è
+            assegnato solo quando tutte le partite della giornata sono concluse.
+            Chi non gioca non riceve punti. Vale dentro le leghe; la classifica
+            globale conta solo i punti puri da pronostico, senza bonus.
           </p>
         </Card>
       </section>

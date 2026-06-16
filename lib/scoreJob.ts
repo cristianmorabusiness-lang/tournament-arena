@@ -120,6 +120,23 @@ export async function runScoring(): Promise<ScoreJobResult> {
   }
   const scoredDates = [...finishedMatchesByDate.keys()];
 
+  // Who actually played each day: a user counts as a participant of a date if
+  // they set at least one prediction on a match of that date. Non-participants
+  // must NOT receive the last-place consolation bonus (otherwise idle members
+  // accumulate free points just by tying for last at 0).
+  const participantsByDate = new Map<string, Set<string>>();
+  for (const p of predictions) {
+    const m = matchById.get(p.match_id);
+    if (!m) continue;
+    const d = dayKey(m.kickoff_at);
+    let set = participantsByDate.get(d);
+    if (!set) {
+      set = new Set<string>();
+      participantsByDate.set(d, set);
+    }
+    set.add(p.user_id);
+  }
+
   // --- 2) Per-league per-day base points + day bonus ---
   const membersByLeague = new Map<string, string[]>();
   for (const m of members) {
@@ -149,23 +166,30 @@ export async function runScoring(): Promise<ScoreJobResult> {
 
   for (const [leagueId, userIds] of membersByLeague) {
     for (const date of scoredDates) {
-      const dayScores: DayScore[] = userIds.map((u) => ({
-        userId: u,
-        points: basePointsForUserDate(u, date),
-      }));
-      const bonusMap = dayComplete.get(date)
-        ? computeDayBonus(dayScores)
-        : new Map<string, number>();
+      const participants = participantsByDate.get(date) ?? new Set<string>();
+      // Only members who actually played that day are eligible for the bonus,
+      // and only when there are at least two of them (a consolation prize needs
+      // someone to be last relative to others).
+      const eligible: DayScore[] = userIds
+        .filter((u) => participants.has(u))
+        .map((u) => ({ userId: u, points: basePointsForUserDate(u, date) }));
+      const bonusMap =
+        dayComplete.get(date) && eligible.length >= 2
+          ? computeDayBonus(eligible)
+          : new Map<string, number>();
 
-      for (const s of dayScores) {
-        const bonus = bonusMap.get(s.userId) ?? 0;
+      // Still emit a row for every member so re-runs overwrite any stale
+      // (previously buggy) bonus with the correct value.
+      for (const u of userIds) {
+        const base = basePointsForUserDate(u, date);
+        const bonus = bonusMap.get(u) ?? 0;
         dailyRows.push({
           league_id: leagueId,
-          user_id: s.userId,
+          user_id: u,
           match_date: date,
-          base_points: s.points,
+          base_points: base,
           bonus_points: bonus,
-          total_points: s.points + bonus,
+          total_points: base + bonus,
           updated_at: now,
         });
       }
