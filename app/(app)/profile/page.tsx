@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { PushToggle } from "@/components/PushToggle";
+import { UsernameForm } from "@/components/profile/UsernameForm";
 import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
 import { flagForCode } from "@/lib/nationalTeams";
@@ -127,6 +128,10 @@ export default async function ProfilePage() {
         />
         <StatTile label="Miglior giornata" value={bestDayLabel} />
       </div>
+
+      <Card className="p-4">
+        <UsernameForm current={profile.username} />
+      </Card>
 
       {publicEnv.vapidPublicKey && (
         <Card className="p-4">
