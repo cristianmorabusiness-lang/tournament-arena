@@ -1,10 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import Link from "next/link";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { savePrediction, type PredictionState } from "@/lib/actions/predictions";
+import { LOCK_LEAD_MS } from "@/lib/matchday";
 
 export type MatchRowData = {
   id: string;
@@ -67,6 +69,46 @@ function SaveButton() {
   );
 }
 
+/** Live "closes in …" countdown until a match locks (kickoff − 5 min). */
+function LockCountdown({ kickoffAt }: { kickoffAt: string }) {
+  const lockAt = new Date(kickoffAt).getTime() - LOCK_LEAD_MS;
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (now === null) return null;
+  const ms = lockAt - now;
+  if (ms <= 0) return null;
+
+  const min = Math.floor(ms / 60_000);
+  const label =
+    min >= 1440
+      ? `${Math.floor(min / 1440)}g`
+      : min >= 60
+        ? `${Math.floor(min / 60)}h ${min % 60}m`
+        : `${min}m`;
+  const urgent = ms <= 60 * 60_000;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] tabular-nums ${
+        urgent ? "text-secondary" : "text-muted-foreground"
+      }`}
+      title="Tempo rimasto per pronosticare"
+    >
+      <svg viewBox="0 0 24 24" width={11} height={11} fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {label}
+    </span>
+  );
+}
+
 export function MatchRow({
   match,
   locked,
@@ -96,6 +138,13 @@ export function MatchRow({
           <TeamFlag src={match.awayFlag} />
           {match.awayName}
         </span>
+        <Link
+          href={`/matches/${match.id}`}
+          className="ml-1 text-xs font-medium text-muted-foreground hover:text-primary"
+          aria-label="Dettagli partita e pronostici"
+        >
+          Dettagli ›
+        </Link>
       </div>
 
       <div className="flex items-center gap-3">
@@ -138,6 +187,7 @@ export function MatchRow({
           </div>
         ) : (
           <form action={action} className="flex items-center gap-2">
+            <LockCountdown kickoffAt={match.kickoffAt} />
             <input type="hidden" name="matchId" value={match.id} />
             <input
               type="number"

@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { PendingRequests } from "@/components/leagues/PendingRequests";
+import { ShareInvite } from "@/components/leagues/ShareInvite";
 import { RankDelta } from "@/components/RankDelta";
 import { createClient } from "@/lib/supabase/server";
 import { flagForCode } from "@/lib/nationalTeams";
@@ -162,7 +163,10 @@ export default async function LeagueDetailPage({
             </span>
           </p>
         </div>
-        {isAdmin && <Badge tone="primary">Sei l&apos;admin</Badge>}
+        <div className="flex items-center gap-2">
+          {isAdmin && <Badge tone="primary">Sei l&apos;admin</Badge>}
+          <ShareInvite code={league.join_code} leagueName={league.name} />
+        </div>
       </div>
 
       {isAdmin && (
