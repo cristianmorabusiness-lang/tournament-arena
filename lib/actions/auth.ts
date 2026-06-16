@@ -35,13 +35,30 @@ export async function signup(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: { data: { username: parsed.data.username } },
   });
 
   if (error) return { error: error.message };
+
+  // With email confirmation disabled, signUp already returns a session and the
+  // user is logged straight in. If no session came back, try an immediate
+  // sign-in so registration leads directly into the app; if that fails (email
+  // confirmation is still enabled), tell the user to confirm their email.
+  if (!data.session) {
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
+    if (signInError) {
+      return {
+        error:
+          "Account creato. Controlla la tua email per confermare e poi accedi.",
+      };
+    }
+  }
 
   redirect("/onboarding");
 }
