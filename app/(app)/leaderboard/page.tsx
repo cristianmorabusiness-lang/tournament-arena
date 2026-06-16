@@ -9,6 +9,13 @@ type Row = {
   profiles: { id: string; username: string; favorite_country: string | null } | null;
 };
 
+// Cartoon crowns for the podium (gold / silver / bronze), shown next to the rank.
+const PODIUM_CROWNS = [
+  "/crown-gold.png",
+  "/crown-silver.png",
+  "/crown-bronze.png",
+];
+
 export default async function LeaderboardPage() {
   const supabase = await createClient();
   const {
@@ -48,8 +55,20 @@ export default async function LeaderboardPage() {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="tabular-nums w-6 text-right text-sm text-muted-foreground">
-                      {i + 1}
+                    <span className="flex items-center gap-1">
+                      <span className="tabular-nums w-6 text-right text-sm text-muted-foreground">
+                        {i + 1}
+                      </span>
+                      {PODIUM_CROWNS[i] && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={PODIUM_CROWNS[i]}
+                          alt=""
+                          width={18}
+                          height={18}
+                          className="size-[18px] shrink-0 object-contain"
+                        />
+                      )}
                     </span>
                     {flagForCode(r.profiles?.favorite_country) && (
                       <span className="text-lg leading-none" aria-hidden>
