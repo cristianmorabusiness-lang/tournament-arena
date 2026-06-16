@@ -96,8 +96,12 @@ Definiti in `vercel.json`:
 
 | Endpoint | Schedule | Cosa fa |
 |----------|----------|---------|
-| `/api/sync` | ogni 6 ore | Aggiorna squadre, rose, calendario e risultati |
+| `/api/sync` | ogni giorno 02:00 UTC | Aggiorna squadre, rose, calendario e risultati |
 | `/api/score` | ogni giorno 03:00 UTC | Punteggi, classifica per lega, bonus giornata, classifica globale |
+
+> Nota: il piano **Hobby** di Vercel consente cron job al massimo **una volta al giorno**.
+> Per frequenze maggiori (es. aggiornare i risultati live più spesso) serve il piano Pro;
+> in alternativa, puoi triggerare `/api/sync` manualmente o da un cron esterno.
 
 ## Deploy su Vercel
 
