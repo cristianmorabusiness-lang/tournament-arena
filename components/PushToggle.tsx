@@ -6,6 +6,7 @@ import {
   savePushSubscription,
   removePushSubscription,
 } from "@/lib/actions/push";
+import { sendTestPush } from "@/lib/actions/pushTest";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -22,6 +23,7 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +88,19 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
     }
   }
 
+  async function sendTest() {
+    setBusy(true);
+    setTestMsg(null);
+    try {
+      const res = await sendTestPush();
+      setTestMsg(res.ok ? "Inviata! Controlla le notifiche." : (res.error ?? "Errore"));
+    } catch {
+      setTestMsg("Invio non riuscito.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function disable() {
     setBusy(true);
     setError(null);
@@ -132,6 +147,22 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
           </Button>
         )}
       </div>
+
+      {state === "on" && (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={sendTest}
+            disabled={busy}
+            className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+          >
+            Invia notifica di prova
+          </button>
+          {testMsg && (
+            <span className="text-xs text-muted-foreground">{testMsg}</span>
+          )}
+        </div>
+      )}
 
       {state === "denied" && (
         <p className="text-sm text-muted-foreground">
