@@ -40,6 +40,9 @@ export const serverEnv = {
   get footballApiKey() {
     return required("FOOTBALL_API_KEY", process.env.FOOTBALL_API_KEY);
   },
+  get footballDataApiKey() {
+    return required("FOOTBALL_DATA_API_KEY", process.env.FOOTBALL_DATA_API_KEY);
+  },
   /** Optional — used to authorize cron-triggered endpoints. */
   get cronSecret() {
     return process.env.CRON_SECRET;

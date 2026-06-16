@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { PendingRequests } from "@/components/leagues/PendingRequests";
 import { createClient } from "@/lib/supabase/server";
+import { flagForCode } from "@/lib/nationalTeams";
 import type { League, MemberRole, MemberStatus } from "@/lib/types";
 
 type MemberRow = {
@@ -11,7 +12,7 @@ type MemberRow = {
   user_id: string;
   role: MemberRole;
   status: MemberStatus;
-  profiles: { username: string } | null;
+  profiles: { username: string; favorite_country: string | null } | null;
 };
 
 export default async function LeagueDetailPage({
@@ -46,7 +47,7 @@ export default async function LeagueDetailPage({
 
   const { data: memberData } = await supabase
     .from("league_members")
-    .select("id, user_id, role, status, profiles(username)")
+    .select("id, user_id, role, status, profiles(username, favorite_country)")
     .eq("league_id", id)
     .order("created_at", { ascending: true });
   const members = (memberData ?? []) as unknown as MemberRow[];
@@ -58,6 +59,9 @@ export default async function LeagueDetailPage({
   // Standings: sum of daily total_points per member within this league.
   const usernameByUser = new Map(
     approved.map((m) => [m.user_id, m.profiles?.username ?? "utente"]),
+  );
+  const countryByUser = new Map(
+    approved.map((m) => [m.user_id, m.profiles?.favorite_country ?? null]),
   );
   const { data: scoreData } = await supabase
     .from("daily_scores")
@@ -71,6 +75,7 @@ export default async function LeagueDetailPage({
     .map((m) => ({
       userId: m.user_id,
       username: usernameByUser.get(m.user_id) ?? "utente",
+      country: countryByUser.get(m.user_id) ?? null,
       points: totals.get(m.user_id) ?? 0,
     }))
     .sort((a, b) => b.points - a.points);
@@ -114,6 +119,11 @@ export default async function LeagueDetailPage({
                   <span className="tabular-nums w-6 text-right text-sm text-muted-foreground">
                     {i + 1}
                   </span>
+                  {flagForCode(s.country) && (
+                    <span className="text-lg leading-none" aria-hidden>
+                      {flagForCode(s.country)}
+                    </span>
+                  )}
                   <span className="font-medium">@{s.username}</span>
                 </div>
                 <span className="tabular-nums font-semibold">{s.points} pt</span>
@@ -134,7 +144,12 @@ export default async function LeagueDetailPage({
                 key={m.id}
                 className="flex items-center justify-between px-5 py-3"
               >
-                <span className="font-medium">
+                <span className="flex items-center gap-2 font-medium">
+                  {flagForCode(m.profiles?.favorite_country) && (
+                    <span className="text-lg leading-none" aria-hidden>
+                      {flagForCode(m.profiles?.favorite_country)}
+                    </span>
+                  )}
                   @{m.profiles?.username ?? "utente"}
                 </span>
                 {m.role === "admin" && <Badge tone="primary">Admin</Badge>}

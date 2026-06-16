@@ -3,18 +3,21 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { isValidCode } from "@/lib/nationalTeams";
 
 export type OnboardingState = { error?: string } | undefined;
 
-const schema = z.object({ teamId: z.string().uuid("Squadra non valida.") });
+const schema = z.object({
+  country: z.string().refine(isValidCode, "Nazionale non valida."),
+});
 
 export async function setFavoriteTeam(
   _prev: OnboardingState,
   formData: FormData,
 ): Promise<OnboardingState> {
-  const parsed = schema.safeParse({ teamId: formData.get("teamId") });
+  const parsed = schema.safeParse({ country: formData.get("country") });
   if (!parsed.success) {
-    return { error: "Seleziona una squadra valida." };
+    return { error: "Seleziona una nazionale valida." };
   }
 
   const supabase = await createClient();
@@ -25,10 +28,10 @@ export async function setFavoriteTeam(
 
   const { error } = await supabase
     .from("profiles")
-    .update({ favorite_team_id: parsed.data.teamId })
+    .update({ favorite_country: parsed.data.country })
     .eq("id", user.id);
 
-  if (error) return { error: "Impossibile salvare la squadra. Riprova." };
+  if (error) return { error: "Impossibile salvare la nazionale. Riprova." };
 
   redirect("/dashboard");
 }

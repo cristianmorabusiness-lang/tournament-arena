@@ -24,6 +24,7 @@ export type Profile = {
   id: string;
   username: string;
   favorite_team_id: string | null;
+  favorite_country: string | null;
   created_at: string;
 };
 

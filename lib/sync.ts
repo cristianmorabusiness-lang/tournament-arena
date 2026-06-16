@@ -7,6 +7,9 @@ export type SyncResult = {
   matches: number;
   players: number;
   playersRateLimited: boolean;
+  // Kickoff date range of the fetched fixtures — lets you verify the season/year.
+  firstKickoff: string | null;
+  lastKickoff: string | null;
 };
 
 /**
@@ -99,10 +102,13 @@ export async function syncAll(): Promise<SyncResult> {
     }
   }
 
+  const kickoffs = apiMatches.map((m) => m.kickoffAt).sort();
   return {
     teams: apiTeams.length,
     matches: apiMatches.length,
     players: playerCount,
     playersRateLimited: rateLimited,
+    firstKickoff: kickoffs[0] ?? null,
+    lastKickoff: kickoffs[kickoffs.length - 1] ?? null,
   };
 }

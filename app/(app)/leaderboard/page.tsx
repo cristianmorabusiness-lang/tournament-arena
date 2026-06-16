@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { createClient } from "@/lib/supabase/server";
+import { flagForCode } from "@/lib/nationalTeams";
 
 type Row = {
   total_points: number;
-  profiles: { id: string; username: string } | null;
+  profiles: { id: string; username: string; favorite_country: string | null } | null;
 };
 
 export default async function LeaderboardPage() {
@@ -17,7 +18,7 @@ export default async function LeaderboardPage() {
 
   const { data } = await supabase
     .from("global_scores")
-    .select("total_points, profiles(id, username)")
+    .select("total_points, profiles(id, username, favorite_country)")
     .order("total_points", { ascending: false });
   const rows = (data ?? []) as unknown as Row[];
 
@@ -50,6 +51,11 @@ export default async function LeaderboardPage() {
                     <span className="tabular-nums w-6 text-right text-sm text-muted-foreground">
                       {i + 1}
                     </span>
+                    {flagForCode(r.profiles?.favorite_country) && (
+                      <span className="text-lg leading-none" aria-hidden>
+                        {flagForCode(r.profiles?.favorite_country)}
+                      </span>
+                    )}
                     <span className="font-medium">
                       @{r.profiles?.username ?? "utente"}
                       {isMe && (

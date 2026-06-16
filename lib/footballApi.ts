@@ -184,10 +184,177 @@ class ApiFootballProvider implements FootballApiProvider {
   }
 }
 
+// ---------------------------------------------------------------------------
+// football-data.org provider (v4)
+// ---------------------------------------------------------------------------
+//
+// Free tier: 10 requests/minute, World Cup competition included. Docs:
+// https://www.football-data.org/documentation/quickstart
+//
+// World Cup competition code is "WC" (id 2000). Season is the starting year.
+const FD_BASE_URL =
+  process.env.FOOTBALL_DATA_BASE ?? "https://api.football-data.org/v4";
+const FD_COMPETITION = process.env.FOOTBALL_DATA_COMPETITION ?? "WC";
+// Optional. On the free tier the `season` filter is restricted to the CURRENT
+// season; omitting it returns the current edition (the live 2026 World Cup right
+// now). Only set FOOTBALL_DATA_SEASON to target a different/past edition.
+const FD_SEASON = process.env.FOOTBALL_DATA_SEASON;
+
+// football-data.org fixture statuses → our normalized MatchStatus.
+function mapFdStatus(status: string): MatchStatus {
+  switch (status) {
+    case "FINISHED":
+    case "AWARDED":
+      return "FINISHED";
+    case "IN_PLAY":
+      return "IN_PLAY";
+    case "PAUSED":
+      return "PAUSED";
+    case "TIMED":
+      return "TIMED";
+    case "SUSPENDED":
+    case "POSTPONED":
+      return "POSTPONED";
+    case "CANCELLED":
+      return "CANCELLED";
+    case "SCHEDULED":
+    default:
+      return "SCHEDULED";
+  }
+}
+
+// Build a human-readable round label from football-data's stage/group/matchday.
+function fdRoundLabel(
+  stage: string | null,
+  group: string | null,
+  matchday: number | null,
+): string | null {
+  const pretty = (s: string) =>
+    s
+      .toLowerCase()
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  if (group) return pretty(group); // e.g. "Group A"
+  if (stage) return pretty(stage); // e.g. "Last 16", "Group Stage"
+  if (matchday != null) return `Giornata ${matchday}`;
+  return null;
+}
+
+class FootballDataProvider implements FootballApiProvider {
+  private async request<T>(path: string, params: Record<string, string> = {}) {
+    const url = new URL(`${FD_BASE_URL}${path}`);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+    const res = await fetch(url, {
+      headers: { "X-Auth-Token": serverEnv.footballDataApiKey },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      // football-data returns a JSON body like { message, errorCode }; surface it
+      // so restricted-season / quota errors are actionable. Keep the status code
+      // in the message so the sync loop can still detect 429s.
+      let detail = res.statusText;
+      try {
+        const body = (await res.json()) as { message?: string };
+        if (body?.message) detail = body.message;
+      } catch {
+        // non-JSON body; fall back to statusText
+      }
+      throw new Error(`football-data ${path} failed: ${res.status} ${detail}`);
+    }
+    return (await res.json()) as T;
+  }
+
+  /** season param only when explicitly configured (free tier = current season). */
+  private seasonParams(): Record<string, string> {
+    return FD_SEASON ? { season: FD_SEASON } : {};
+  }
+
+  async getQualifiedTeams(): Promise<ApiTeam[]> {
+    // GET /competitions/{code}/teams?season={year}
+    type Resp = {
+      teams: {
+        id: number;
+        name: string;
+        tla: string | null;
+        crest: string | null;
+      }[];
+    };
+    const data = await this.request<Resp>(
+      `/competitions/${FD_COMPETITION}/teams`,
+      this.seasonParams(),
+    );
+    return (data.teams ?? []).map((t) => ({
+      externalId: String(t.id),
+      name: t.name,
+      code: t.tla,
+      flagUrl: t.crest,
+      group: null, // group is per-match in this API; resolved on matches, not teams
+    }));
+  }
+
+  async getSquad(teamExternalId: string): Promise<ApiPlayer[]> {
+    // GET /teams/{id} → includes a `squad` array (no shirt numbers on the API).
+    type Resp = {
+      squad: { id: number; name: string; position: string | null }[];
+    };
+    const data = await this.request<Resp>(`/teams/${teamExternalId}`);
+    return (data.squad ?? []).map((p) => ({
+      externalId: String(p.id),
+      teamExternalId,
+      name: p.name,
+      position: p.position,
+      shirtNumber: null,
+    }));
+  }
+
+  async getMatches(): Promise<ApiMatch[]> {
+    // GET /competitions/{code}/matches?season={year}
+    type Resp = {
+      matches: {
+        id: number;
+        utcDate: string;
+        status: string;
+        stage: string | null;
+        group: string | null;
+        matchday: number | null;
+        homeTeam: { id: number | null } | null;
+        awayTeam: { id: number | null } | null;
+        score: { fullTime: { home: number | null; away: number | null } };
+      }[];
+    };
+    const data = await this.request<Resp>(
+      `/competitions/${FD_COMPETITION}/matches`,
+      this.seasonParams(),
+    );
+    return (data.matches ?? []).map((m) => ({
+      externalId: String(m.id),
+      homeTeamExternalId: m.homeTeam?.id != null ? String(m.homeTeam.id) : null,
+      awayTeamExternalId: m.awayTeam?.id != null ? String(m.awayTeam.id) : null,
+      kickoffAt: m.utcDate,
+      matchday: fdRoundLabel(m.stage, m.group, m.matchday),
+      status: mapFdStatus(m.status),
+      homeScore: m.score?.fullTime?.home ?? null,
+      awayScore: m.score?.fullTime?.away ?? null,
+    }));
+  }
+}
+
 let provider: FootballApiProvider | null = null;
 
-/** Returns the configured football data provider (singleton). */
+/**
+ * Returns the configured football data provider (singleton).
+ * Select with FOOTBALL_PROVIDER: "football-data" (default) or "api-football".
+ */
 export function getFootballApi(): FootballApiProvider {
-  if (!provider) provider = new ApiFootballProvider();
+  if (!provider) {
+    const choice = process.env.FOOTBALL_PROVIDER ?? "football-data";
+    provider =
+      choice === "api-football"
+        ? new ApiFootballProvider()
+        : new FootballDataProvider();
+  }
   return provider;
 }

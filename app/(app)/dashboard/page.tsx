@@ -18,12 +18,12 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, favorite_team_id")
+    .select("username, favorite_country")
     .eq("id", user.id)
     .single();
 
-  // Onboarding gate: must pick a favorite team first.
-  if (!profile?.favorite_team_id) redirect("/onboarding");
+  // Onboarding gate: must pick a favorite national team first.
+  if (!profile?.favorite_country) redirect("/onboarding");
 
   return (
     <div>
