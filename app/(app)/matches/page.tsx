@@ -12,8 +12,8 @@ type Row = {
   status: string;
   home_score: number | null;
   away_score: number | null;
-  home: { name: string } | null;
-  away: { name: string } | null;
+  home: { name: string; flag_url: string | null } | null;
+  away: { name: string; flag_url: string | null } | null;
 };
 
 function dateLabel(date: string): string {
@@ -35,7 +35,7 @@ export default async function MatchesPage() {
   const { data: matchData } = await supabase
     .from("matches")
     .select(
-      "id, kickoff_at, status, home_score, away_score, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
+      "id, kickoff_at, status, home_score, away_score, home:teams!matches_home_team_id_fkey(name, flag_url), away:teams!matches_away_team_id_fkey(name, flag_url)",
     )
     .order("kickoff_at");
   const matches = (matchData ?? []) as unknown as Row[];
@@ -86,6 +86,8 @@ export default async function MatchesPage() {
                     id: m.id,
                     homeName: m.home?.name ?? "TBD",
                     awayName: m.away?.name ?? "TBD",
+                    homeFlag: m.home?.flag_url ?? null,
+                    awayFlag: m.away?.flag_url ?? null,
                     kickoffAt: m.kickoff_at,
                     status: m.status,
                     homeScore: m.home_score,

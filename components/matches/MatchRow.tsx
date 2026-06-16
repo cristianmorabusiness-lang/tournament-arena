@@ -10,6 +10,8 @@ export type MatchRowData = {
   id: string;
   homeName: string;
   awayName: string;
+  homeFlag: string | null;
+  awayFlag: string | null;
   kickoffAt: string;
   status: string;
   homeScore: number | null;
@@ -24,6 +26,20 @@ function timeLabel(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function TeamFlag({ src }: { src: string | null }) {
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      width={20}
+      height={20}
+      className="size-5 shrink-0 rounded-sm object-cover"
+    />
+  );
 }
 
 function SaveButton() {
@@ -55,9 +71,15 @@ export function MatchRow({
         <span className="tabular-nums text-muted-foreground">
           {timeLabel(match.kickoffAt)}
         </span>
-        <span className="font-medium">{match.homeName}</span>
+        <span className="flex items-center gap-1.5 font-medium">
+          <TeamFlag src={match.homeFlag} />
+          {match.homeName}
+        </span>
         <span className="text-muted-foreground">vs</span>
-        <span className="font-medium">{match.awayName}</span>
+        <span className="flex items-center gap-1.5 font-medium">
+          <TeamFlag src={match.awayFlag} />
+          {match.awayName}
+        </span>
       </div>
 
       <div className="flex items-center gap-3">
