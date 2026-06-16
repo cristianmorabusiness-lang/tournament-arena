@@ -4,8 +4,9 @@ import { getFootballApi } from "@/lib/footballApi";
 
 export type SyncResult = {
   teams: number;
-  players: number;
   matches: number;
+  players: number;
+  playersRateLimited: boolean;
 };
 
 /**
@@ -42,28 +43,7 @@ export async function syncAll(): Promise<SyncResult> {
     (teamRows ?? []).map((r) => [r.external_id, r.id]),
   );
 
-  // 2) Players (squad per team)
-  let playerCount = 0;
-  for (const team of apiTeams) {
-    const teamId = teamIdByExternal.get(team.externalId);
-    if (!teamId) continue;
-    const squad = await api.getSquad(team.externalId);
-    if (squad.length === 0) continue;
-    const { error } = await supabase.from("players").upsert(
-      squad.map((p) => ({
-        external_id: p.externalId,
-        team_id: teamId,
-        name: p.name,
-        position: p.position,
-        shirt_number: p.shirtNumber,
-      })),
-      { onConflict: "external_id" },
-    );
-    if (error) throw new Error(`players upsert (${team.name}): ${error.message}`);
-    playerCount += squad.length;
-  }
-
-  // 3) Matches (calendar + results)
+  // 2) Matches (calendar + results) — essential data, synced before squads.
   const apiMatches = await api.getMatches();
   if (apiMatches.length > 0) {
     const { error } = await supabase.from("matches").upsert(
@@ -87,9 +67,42 @@ export async function syncAll(): Promise<SyncResult> {
     if (error) throw new Error(`matches upsert: ${error.message}`);
   }
 
+  // 3) Players (squad per team) — BEST EFFORT. The free API plan is rate-limited,
+  // so a 429 (or any squad error) must not fail the whole sync. Partial squads
+  // are fine; remaining ones fill in on subsequent runs (idempotent upserts).
+  let playerCount = 0;
+  let rateLimited = false;
+  for (const team of apiTeams) {
+    const teamId = teamIdByExternal.get(team.externalId);
+    if (!teamId) continue;
+    try {
+      const squad = await api.getSquad(team.externalId);
+      if (squad.length === 0) continue;
+      const { error } = await supabase.from("players").upsert(
+        squad.map((p) => ({
+          external_id: p.externalId,
+          team_id: teamId,
+          name: p.name,
+          position: p.position,
+          shirt_number: p.shirtNumber,
+        })),
+        { onConflict: "external_id" },
+      );
+      if (error) continue; // skip this team's squad on a DB error, keep going
+      playerCount += squad.length;
+    } catch (err) {
+      // Stop squads on rate limit; other errors just skip this team.
+      if (err instanceof Error && err.message.includes("429")) {
+        rateLimited = true;
+        break;
+      }
+    }
+  }
+
   return {
     teams: apiTeams.length,
-    players: playerCount,
     matches: apiMatches.length,
+    players: playerCount,
+    playersRateLimited: rateLimited,
   };
 }
