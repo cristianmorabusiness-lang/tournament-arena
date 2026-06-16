@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
+import { RankDelta } from "@/components/RankDelta";
 import { createClient } from "@/lib/supabase/server";
 import { flagForCode } from "@/lib/nationalTeams";
 
 type Row = {
   total_points: number;
+  rank: number | null;
+  previous_rank: number | null;
   profiles: { id: string; username: string; favorite_country: string | null } | null;
 };
 
@@ -25,7 +28,7 @@ export default async function LeaderboardPage() {
 
   const { data } = await supabase
     .from("global_scores")
-    .select("total_points, profiles(id, username, favorite_country)")
+    .select("total_points, rank, previous_rank, profiles(id, username, favorite_country)")
     .order("total_points", { ascending: false });
   const rows = (data ?? []) as unknown as Row[];
 
@@ -81,6 +84,9 @@ export default async function LeaderboardPage() {
                         <span className="ml-2 text-xs text-primary">(tu)</span>
                       )}
                     </span>
+                    {r.rank != null && r.previous_rank != null && (
+                      <RankDelta delta={r.previous_rank - r.rank} />
+                    )}
                   </div>
                   <span className="tabular-nums font-semibold">
                     {r.total_points} pt

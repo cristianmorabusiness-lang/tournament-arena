@@ -31,6 +31,23 @@ export type MatchDayGroup<T extends Pick<Match, "kickoff_at">> = {
   matches: T[];
 };
 
+/**
+ * Picks the day to feature on the home page: today (UTC) if it has matches,
+ * otherwise the next upcoming day that has matches. Returns its dayKey, or null
+ * if there are no matches today or in the future.
+ */
+export function pickFeaturedDay<T extends Pick<Match, "kickoff_at">>(
+  matches: T[],
+  now: Date = new Date(),
+): string | null {
+  const today = now.toISOString().slice(0, 10);
+  const upcomingDays = matches
+    .map((m) => dayKey(m.kickoff_at))
+    .filter((d) => d >= today)
+    .sort();
+  return upcomingDays[0] ?? null;
+}
+
 /** Groups matches by UTC day, sorted by date then kickoff. */
 export function groupByDay<T extends Pick<Match, "kickoff_at">>(
   matches: T[],

@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { PendingRequests } from "@/components/leagues/PendingRequests";
+import { RankDelta } from "@/components/RankDelta";
 import { createClient } from "@/lib/supabase/server";
 import { flagForCode } from "@/lib/nationalTeams";
 import type { League, MemberRole, MemberStatus } from "@/lib/types";
@@ -71,6 +72,19 @@ export default async function LeagueDetailPage({
   for (const row of scoreData ?? []) {
     totals.set(row.user_id, (totals.get(row.user_id) ?? 0) + row.total_points);
   }
+
+  // Rank history (from the last scoring run) for the position-change indicator.
+  const { data: standingData } = await supabase
+    .from("league_standings")
+    .select("user_id, rank, previous_rank")
+    .eq("league_id", id);
+  const rankByUser = new Map(
+    (standingData ?? []).map((s) => [
+      s.user_id,
+      { rank: s.rank as number | null, prev: s.previous_rank as number | null },
+    ]),
+  );
+
   const standings = approved
     .map((m) => ({
       userId: m.user_id,
@@ -78,7 +92,7 @@ export default async function LeagueDetailPage({
       country: countryByUser.get(m.user_id) ?? null,
       points: totals.get(m.user_id) ?? 0,
     }))
-    .sort((a, b) => b.points - a.points);
+    .sort((a, b) => b.points - a.points || (a.userId < b.userId ? -1 : 1));
 
   return (
     <div className="flex flex-col gap-6">
@@ -125,6 +139,12 @@ export default async function LeagueDetailPage({
                     </span>
                   )}
                   <span className="font-medium">@{s.username}</span>
+                  {(() => {
+                    const rk = rankByUser.get(s.userId);
+                    return rk?.rank != null && rk.prev != null ? (
+                      <RankDelta delta={rk.prev - rk.rank} />
+                    ) : null;
+                  })()}
                 </div>
                 <span className="tabular-nums font-semibold">{s.points} pt</span>
               </li>

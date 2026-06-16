@@ -7,6 +7,7 @@ export type ScoreJobResult = {
   scoredPredictions: number;
   dailyScoreRows: number;
   globalRows: number;
+  leagueStandingRows: number;
 };
 
 /**
@@ -47,6 +48,21 @@ export async function runScoring(): Promise<ScoreJobResult> {
     .select("id");
   if (profileErr) throw new Error(`profiles read: ${profileErr.message}`);
   const profiles = profileData ?? [];
+
+  // Ranks from the PREVIOUS scoring run, used to compute position deltas.
+  // Read before we overwrite them below.
+  const { data: prevGlobal } = await supabase
+    .from("global_scores")
+    .select("user_id, rank");
+  const prevGlobalRank = new Map<string, number | null>(
+    (prevGlobal ?? []).map((r) => [r.user_id, r.rank]),
+  );
+  const { data: prevLeague } = await supabase
+    .from("league_standings")
+    .select("league_id, user_id, rank");
+  const prevLeagueRank = new Map<string, number | null>(
+    (prevLeague ?? []).map((r) => [`${r.league_id}|${r.user_id}`, r.rank]),
+  );
 
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
@@ -163,14 +179,63 @@ export async function runScoring(): Promise<ScoreJobResult> {
     if (error) throw new Error(`daily_scores upsert: ${error.message}`);
   }
 
-  // --- 3) Global leaderboard (pure prediction points) ---
+  // --- 3) Per-league aggregated standings with rank history ---
+  // Deterministic ordering (points desc, then user_id asc) so the stored rank
+  // matches the row order shown in the UI and deltas line up exactly.
+  const leagueStandingRows: {
+    league_id: string;
+    user_id: string;
+    total_points: number;
+    rank: number;
+    previous_rank: number | null;
+    updated_at: string;
+  }[] = [];
+
+  for (const [leagueId, userIds] of membersByLeague) {
+    const totals = new Map<string, number>(userIds.map((u) => [u, 0]));
+    for (const r of dailyRows) {
+      if (r.league_id !== leagueId) continue;
+      totals.set(r.user_id, (totals.get(r.user_id) ?? 0) + r.total_points);
+    }
+    const ranked = [...userIds].sort(
+      (a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0) || (a < b ? -1 : 1),
+    );
+    ranked.forEach((u, idx) => {
+      leagueStandingRows.push({
+        league_id: leagueId,
+        user_id: u,
+        total_points: totals.get(u) ?? 0,
+        rank: idx + 1,
+        previous_rank: prevLeagueRank.get(`${leagueId}|${u}`) ?? null,
+        updated_at: now,
+      });
+    });
+  }
+
+  if (leagueStandingRows.length > 0) {
+    const { error } = await supabase
+      .from("league_standings")
+      .upsert(leagueStandingRows, { onConflict: "league_id,user_id" });
+    if (error) throw new Error(`league_standings upsert: ${error.message}`);
+  }
+
+  // --- 4) Global leaderboard (pure prediction points) ---
   const globalByUser = new Map<string, number>();
   for (const s of scored) {
     globalByUser.set(s.user_id, (globalByUser.get(s.user_id) ?? 0) + s.points);
   }
-  const globalRows = profiles.map((p) => ({
-    user_id: p.id,
-    total_points: globalByUser.get(p.id) ?? 0,
+  const globalRanked = profiles
+    .map((p) => ({ user_id: p.id, total_points: globalByUser.get(p.id) ?? 0 }))
+    .sort(
+      (a, b) =>
+        b.total_points - a.total_points ||
+        (a.user_id < b.user_id ? -1 : 1),
+    );
+  const globalRows = globalRanked.map((e, idx) => ({
+    user_id: e.user_id,
+    total_points: e.total_points,
+    rank: idx + 1,
+    previous_rank: prevGlobalRank.get(e.user_id) ?? null,
     updated_at: now,
   }));
 
@@ -185,5 +250,6 @@ export async function runScoring(): Promise<ScoreJobResult> {
     scoredPredictions: scored.length,
     dailyScoreRows: dailyRows.length,
     globalRows: globalRows.length,
+    leagueStandingRows: leagueStandingRows.length,
   };
 }
