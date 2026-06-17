@@ -12,12 +12,11 @@ import {
   matchPhase,
 } from "@/lib/matchday";
 import { computePlayerStats } from "@/lib/playerStats";
+import { getLeagueStandings, standingsWindow } from "@/lib/leagueStandings";
 import {
-  getLeagueStandings,
-  standingsWindow,
-  type StandingRow,
-} from "@/lib/leagueStandings";
-import { flagForCode } from "@/lib/nationalTeams";
+  LeagueStandingsPicker,
+  type LeagueMini,
+} from "@/components/dashboard/LeagueStandingsPicker";
 
 type Row = {
   id: string;
@@ -113,60 +112,6 @@ function DaySection({
   );
 }
 
-function MiniStanding({
-  leagueId,
-  leagueName,
-  rows,
-  startRank,
-  userId,
-}: {
-  leagueId: string;
-  leagueName: string;
-  rows: StandingRow[];
-  startRank: number;
-  userId: string;
-}) {
-  return (
-    <Card className="p-0">
-      <Link
-        href={`/leagues/${leagueId}`}
-        className="flex items-center justify-between border-b border-border px-4 py-2.5 text-sm font-semibold hover:text-primary"
-      >
-        {leagueName}
-        <span className="text-xs font-medium text-muted-foreground">Classifica ›</span>
-      </Link>
-      <ul className="divide-y divide-border">
-        {rows.map((r, i) => (
-          <li
-            key={r.userId}
-            className={`flex items-center justify-between px-4 py-2.5 text-sm ${
-              r.userId === userId ? "bg-primary/10" : ""
-            }`}
-          >
-            <span className="flex items-center gap-2.5">
-              <span className="w-5 text-right tabular-nums text-muted-foreground">
-                {startRank + i}
-              </span>
-              {flagForCode(r.country) && (
-                <span className="text-base leading-none" aria-hidden>
-                  {flagForCode(r.country)}
-                </span>
-              )}
-              <span className="font-medium">
-                @{r.username}
-                {r.userId === userId && (
-                  <span className="ml-1.5 text-xs text-primary">(tu)</span>
-                )}
-              </span>
-            </span>
-            <span className="tabular-nums font-semibold">{r.points} pt</span>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}
-
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -238,7 +183,7 @@ export default async function DashboardPage() {
 
   const miniStandings = (
     await Promise.all(
-      memberships.map(async (m) => {
+      memberships.map(async (m): Promise<LeagueMini | null> => {
         if (!m.leagues) return null;
         const standings = await getLeagueStandings(supabase, m.league_id);
         const window = standingsWindow(standings, user.id);
@@ -251,7 +196,7 @@ export default async function DashboardPage() {
         };
       }),
     )
-  ).filter((x): x is NonNullable<typeof x> => x !== null);
+  ).filter((x): x is LeagueMini => x !== null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -305,18 +250,7 @@ export default async function DashboardPage() {
       )}
 
       {miniStandings.length > 0 && (
-        <div className="flex flex-col gap-4">
-          {miniStandings.map((s) => (
-            <MiniStanding
-              key={s.leagueId}
-              leagueId={s.leagueId}
-              leagueName={s.leagueName}
-              rows={s.rows}
-              startRank={s.startRank}
-              userId={user.id}
-            />
-          ))}
-        </div>
+        <LeagueStandingsPicker leagues={miniStandings} userId={user.id} />
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
