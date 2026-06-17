@@ -15,11 +15,11 @@ export function ShareInvite({
   async function share() {
     const url =
       typeof window !== "undefined" ? `${window.location.origin}/leagues` : "";
-    const text = `Unisciti alla mia lega «${leagueName}» su Tournament Arena! Inserisci il codice ${code} nella sezione Leghe.`;
+    const text = `Unisciti alla mia lega «${leagueName}» su Arena! Inserisci il codice ${code} nella sezione Leghe.`;
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({ title: "Tournament Arena", text, url });
+        await navigator.share({ title: "Arena", text, url });
         return;
       } catch {
         // user cancelled or share failed — fall through to copy

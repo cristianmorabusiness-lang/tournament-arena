@@ -9,7 +9,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <h1 className="mb-1 text-center text-2xl font-bold">Bentornato</h1>
         <p className="mb-6 text-center text-sm text-muted-foreground">
-          Accedi a Tournament Arena
+          Accedi ad Arena
         </p>
         <Card>
           <AuthForm mode="login" action={login} />

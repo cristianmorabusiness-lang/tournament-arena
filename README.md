@@ -1,4 +1,4 @@
-# Tournament Arena ⚽🏆
+# Arena ⚽🏆
 
 Piattaforma di **pronostici per i Mondiali di calcio**: crea o unisciti a una lega, indovina
 i risultati esatti delle partite, e scala sia la classifica della tua lega sia la **classifica

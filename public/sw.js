@@ -1,4 +1,4 @@
-/* Tournament Arena — service worker for Web Push reminders. */
+/* Arena — service worker for Web Push reminders. */
 
 self.addEventListener("push", (event) => {
   let data = {};
@@ -7,7 +7,7 @@ self.addEventListener("push", (event) => {
   } catch {
     data = {};
   }
-  const title = data.title || "Tournament Arena";
+  const title = data.title || "Arena";
   const options = {
     body: data.body || "Hai pronostici da inserire!",
     icon: "/crown-gold.png",

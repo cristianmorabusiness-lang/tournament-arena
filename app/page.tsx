@@ -10,7 +10,6 @@ export default function Home() {
         </span>
 
         <h1 className="mt-8 text-4xl font-bold tracking-tight sm:text-6xl">
-          Tournament{" "}
           <span className="text-primary [text-shadow:0_0_18px_rgba(217,119,6,0.45)]">
             Arena
           </span>

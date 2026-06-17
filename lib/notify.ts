@@ -73,7 +73,7 @@ export async function runReminders(): Promise<NotifyResult> {
     const missing = missingByUser.get(sub.user_id);
     if (!missing) continue;
     const payload = JSON.stringify({
-      title: "Tournament Arena ⚽",
+      title: "Arena ⚽",
       body: `Hai ${missing} pronostic${missing > 1 ? "i" : "o"} da inserire per oggi.`,
       url: "/dashboard",
       tag: "daily-reminder",

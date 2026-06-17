@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 
-export const metadata = { title: "Regole · Tournament Arena" };
+export const metadata = { title: "Regole · Arena" };
 
 const MATCH_RULES = [
   {

@@ -23,13 +23,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tournament Arena — Pronostici Mondiali",
+  title: "Arena — Pronostici Mondiali",
   description:
     "Sfida i tuoi amici con i pronostici dei Mondiali: crea leghe, indovina i risultati e scala la classifica globale.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Tournament Arena",
+    title: "Arena",
     statusBarStyle: "black-translucent",
   },
 };

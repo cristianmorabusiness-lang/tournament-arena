@@ -9,7 +9,7 @@ export default function SignupPage() {
       <div className="w-full max-w-sm">
         <h1 className="mb-1 text-center text-2xl font-bold">Crea il tuo account</h1>
         <p className="mb-6 text-center text-sm text-muted-foreground">
-          Unisciti a Tournament Arena
+          Unisciti ad Arena
         </p>
         <Card>
           <AuthForm mode="signup" action={signup} />

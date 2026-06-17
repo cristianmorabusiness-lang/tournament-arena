@@ -26,6 +26,51 @@ export function isMatchLocked(
   return now.getTime() >= lockAtFor(kickoffAt);
 }
 
+/**
+ * The two UTC days currently open for predictions on the Home page: today and
+ * tomorrow. Matches further out are visible but cannot be pronosticated yet —
+ * this is what nudges players to come back (almost) every day.
+ */
+export function homeWindowDays(now: Date = new Date()): [string, string] {
+  const today = now.toISOString().slice(0, 10);
+  const next = new Date(now);
+  next.setUTCDate(next.getUTCDate() + 1);
+  const tomorrow = next.toISOString().slice(0, 10);
+  return [today, tomorrow];
+}
+
+/** True if a match kicks off today or tomorrow (UTC) — i.e. shown in Home. */
+export function isInHomeWindow(
+  kickoffAt: string,
+  now: Date = new Date(),
+): boolean {
+  const [today, tomorrow] = homeWindowDays(now);
+  const d = dayKey(kickoffAt);
+  return d === today || d === tomorrow;
+}
+
+/**
+ * A prediction can be entered for a match only if it is visible in Home
+ * (kicks off today or tomorrow) AND has not locked yet (5 min before kickoff).
+ */
+export function isPredictable(
+  kickoffAt: string,
+  now: Date = new Date(),
+): boolean {
+  return isInHomeWindow(kickoffAt, now) && !isMatchLocked(kickoffAt, now);
+}
+
+/** Display phase of a match row, driving whether the form is shown. */
+export type MatchPhase = "open" | "locked" | "upcoming";
+
+export function matchPhase(
+  kickoffAt: string,
+  now: Date = new Date(),
+): MatchPhase {
+  if (isMatchLocked(kickoffAt, now)) return "locked";
+  return isInHomeWindow(kickoffAt, now) ? "open" : "upcoming";
+}
+
 export type MatchDayGroup<T extends Pick<Match, "kickoff_at">> = {
   date: string;
   matches: T[];

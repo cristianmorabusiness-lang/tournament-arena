@@ -1,4 +1,4 @@
-# Tournament Arena — Feature implementabili in futuro
+# Arena — Feature implementabili in futuro
 
 Raccolta di funzionalità valutate ma volutamente **non** implementate nello scope attuale,
 con la decisione presa e come realizzarle in seguito.

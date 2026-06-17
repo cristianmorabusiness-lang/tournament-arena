@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { isInHomeWindow, isMatchLocked } from "@/lib/matchday";
 
 export type PredictionState =
   | { error?: string; ok?: boolean; matchId?: string }
@@ -38,6 +39,31 @@ export async function savePrediction(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Sessione scaduta." };
 
+  // Product rule: a prediction can only be entered for matches visible in Home
+  // (kicking off today or tomorrow) and still open. This keeps players coming
+  // back daily instead of filling the whole calendar in one sitting. The 5-min
+  // lock is also enforced by RLS; the home-window restriction lives here.
+  const { data: match } = await supabase
+    .from("matches")
+    .select("kickoff_at")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) {
+    return { error: "Partita non trovata.", matchId: parsed.data.matchId };
+  }
+  if (isMatchLocked(match.kickoff_at)) {
+    return {
+      error: "Pronostico bloccato: mancano meno di 5 minuti al via.",
+      matchId: parsed.data.matchId,
+    };
+  }
+  if (!isInHomeWindow(match.kickoff_at)) {
+    return {
+      error: "I pronostici per questa partita si aprono il giorno prima.",
+      matchId: parsed.data.matchId,
+    };
+  }
+
   const { error } = await supabase.from("predictions").upsert(
     {
       user_id: user.id,
@@ -56,5 +82,6 @@ export async function savePrediction(
   }
 
   revalidatePath("/matches");
+  revalidatePath("/dashboard");
   return { ok: true, matchId: parsed.data.matchId };
 }

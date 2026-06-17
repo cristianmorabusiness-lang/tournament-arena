@@ -6,9 +6,9 @@ import { UsernameForm } from "@/components/profile/UsernameForm";
 import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
 import { flagForCode } from "@/lib/nationalTeams";
-import { dayKey } from "@/lib/matchday";
+import { computePlayerStats } from "@/lib/playerStats";
 
-export const metadata = { title: "Profilo · Tournament Arena" };
+export const metadata = { title: "Profilo · Arena" };
 
 function StatTile({
   label,
@@ -64,25 +64,17 @@ export default async function ProfilePage() {
   );
 
   // Scored predictions (the scoring job has assigned points).
-  const scored = predictions.filter((p) => p.points !== null);
-  const exact = scored.filter((p) => p.points === 5).length;
-  const correctSign = scored.filter((p) => (p.points ?? 0) >= 2).length;
+  const stats = computePlayerStats(predictions, kickoffById);
+  const scoredCount = stats.scoredCount;
+  const correctSign = predictions.filter(
+    (p) => p.points !== null && p.points >= 2,
+  ).length;
   const totalPoints = globalRow?.total_points ?? 0;
-  const avg = scored.length ? totalPoints / scored.length : 0;
   const pct = (n: number) =>
-    scored.length ? `${Math.round((n / scored.length) * 100)}%` : "–";
+    scoredCount ? `${Math.round((n / scoredCount) * 100)}%` : "–";
 
-  // Best matchday: highest summed points over a single (UTC) day.
-  const byDay = new Map<string, number>();
-  for (const p of scored) {
-    const iso = kickoffById.get(p.match_id);
-    if (!iso) continue;
-    const d = dayKey(iso);
-    byDay.set(d, (byDay.get(d) ?? 0) + (p.points ?? 0));
-  }
-  const bestDay = [...byDay.entries()].sort((a, b) => b[1] - a[1])[0];
-  const bestDayLabel = bestDay
-    ? `${bestDay[1]} pt · ${new Date(`${bestDay[0]}T00:00:00Z`).toLocaleDateString("it-IT", { day: "numeric", month: "short", timeZone: "UTC" })}`
+  const bestDayLabel = stats.bestDay
+    ? `${stats.bestDay.points} pt · ${new Date(`${stats.bestDay.date}T00:00:00Z`).toLocaleDateString("it-IT", { day: "numeric", month: "short", timeZone: "UTC" })}`
     : "–";
 
   return (
@@ -109,12 +101,12 @@ export default async function ProfilePage() {
         <StatTile
           label="Pronostici"
           value={String(predictions.length)}
-          hint={`${scored.length} valutati`}
+          hint={`${scoredCount} valutati`}
         />
         <StatTile
           label="Risultati esatti"
-          value={String(exact)}
-          hint={pct(exact)}
+          value={String(stats.exact)}
+          hint={pct(stats.exact)}
         />
         <StatTile
           label="Segno corretto"
@@ -123,7 +115,7 @@ export default async function ProfilePage() {
         />
         <StatTile
           label="Media a partita"
-          value={scored.length ? avg.toFixed(1) : "–"}
+          value={scoredCount ? stats.avg.toFixed(1) : "–"}
           hint="punti per pronostico valutato"
         />
         <StatTile label="Miglior giornata" value={bestDayLabel} />
@@ -139,7 +131,7 @@ export default async function ProfilePage() {
         </Card>
       )}
 
-      {scored.length === 0 && (
+      {scoredCount === 0 && (
         <p className="text-sm text-muted-foreground">
           Le statistiche si popolano man mano che le partite vengono giocate e i
           punteggi calcolati.{" "}

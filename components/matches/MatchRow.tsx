@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { savePrediction, type PredictionState } from "@/lib/actions/predictions";
-import { LOCK_LEAD_MS } from "@/lib/matchday";
+import { LOCK_LEAD_MS, type MatchPhase } from "@/lib/matchday";
 
 export type MatchRowData = {
   id: string;
@@ -111,10 +111,11 @@ function LockCountdown({ kickoffAt }: { kickoffAt: string }) {
 
 export function MatchRow({
   match,
-  locked,
+  phase,
 }: {
   match: MatchRowData;
-  locked: boolean;
+  /** "open" → editable form · "locked" → result/points · "upcoming" → not open yet. */
+  phase: MatchPhase;
 }) {
   const [state, action] = useActionState<PredictionState, FormData>(
     savePrediction,
@@ -157,7 +158,7 @@ export function MatchRow({
           </span>
         )}
 
-        {locked ? (
+        {phase === "locked" ? (
           <div className="flex flex-col items-end gap-1">
             <div className="flex items-center gap-2">
               <span className="tabular-nums rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm font-semibold">
@@ -185,6 +186,10 @@ export function MatchRow({
                 </span>
               )}
           </div>
+        ) : phase === "upcoming" ? (
+          <span title="I pronostici si aprono il giorno prima">
+            <Badge tone="neutral">Apre il giorno prima</Badge>
+          </span>
         ) : (
           <form action={action} className="flex items-center gap-2">
             <LockCountdown kickoffAt={match.kickoffAt} />

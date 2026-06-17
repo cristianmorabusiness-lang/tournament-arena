@@ -31,7 +31,7 @@ export async function sendTestPush(): Promise<PushTestResult> {
     serverEnv.vapidPrivateKey,
   );
   const payload = JSON.stringify({
-    title: "Tournament Arena ⚽",
+    title: "Arena ⚽",
     body: "Notifiche attive! Riceverai i promemoria dei pronostici.",
     url: "/dashboard",
     tag: "test",

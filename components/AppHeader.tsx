@@ -84,7 +84,6 @@ function isActive(pathname: string, href: string): boolean {
 
 const Logo = ({ className = "" }: { className?: string }) => (
   <span className={`text-lg font-bold tracking-tight ${className}`}>
-    Tournament{" "}
     <span className="text-primary [text-shadow:0_0_18px_rgba(217,119,6,0.45)]">
       Arena
     </span>
@@ -112,7 +111,7 @@ export function AppHeader({ username }: { username?: string }) {
     <>
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
-          <Link href="/dashboard" aria-label="Tournament Arena">
+          <Link href="/dashboard" aria-label="Arena">
             <Logo />
           </Link>
 

@@ -3,7 +3,12 @@ import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { MatchRow, type MatchRowData } from "@/components/matches/MatchRow";
 import { createClient } from "@/lib/supabase/server";
-import { groupByDay, isMatchLocked, type MatchDayGroup } from "@/lib/matchday";
+import {
+  groupByDay,
+  isMatchLocked,
+  matchPhase,
+  type MatchDayGroup,
+} from "@/lib/matchday";
 
 type Row = {
   id: string;
@@ -68,7 +73,7 @@ function DayGroups({
                   <MatchRow
                     key={m.id}
                     match={row}
-                    locked={isMatchLocked(m.kickoff_at, now)}
+                    phase={matchPhase(m.kickoff_at, now)}
                   />
                 );
               })}
