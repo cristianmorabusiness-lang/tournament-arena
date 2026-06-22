@@ -5,6 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { LocalTime } from "@/components/LocalTime";
 import { savePrediction, type PredictionState } from "@/lib/actions/predictions";
 import { LOCK_LEAD_MS, type MatchPhase } from "@/lib/matchday";
 
@@ -22,13 +23,6 @@ export type MatchRowData = {
   predAway: number | null;
   points: number | null;
 };
-
-function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString("it-IT", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 /** Human-readable reason for the points awarded on a finished match. */
 function pointsReason(
@@ -127,9 +121,10 @@ export function MatchRow({
   return (
     <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-2 text-sm">
-        <span className="tabular-nums text-muted-foreground">
-          {timeLabel(match.kickoffAt)}
-        </span>
+        <LocalTime
+          iso={match.kickoffAt}
+          className="tabular-nums text-muted-foreground"
+        />
         <span className="flex items-center gap-1.5 font-medium">
           <TeamFlag src={match.homeFlag} />
           {match.homeName}

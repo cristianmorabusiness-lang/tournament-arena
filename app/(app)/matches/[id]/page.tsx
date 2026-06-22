@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/Alert";
 import { createClient } from "@/lib/supabase/server";
 import { flagForCode } from "@/lib/nationalTeams";
 import { isMatchLocked } from "@/lib/matchday";
+import { LocalDateTime } from "@/components/LocalTime";
 
 type MatchRow = {
   id: string;
@@ -24,16 +25,6 @@ type PredRow = {
   points: number | null;
   profiles: { username: string; favorite_country: string | null } | null;
 };
-
-function dateTimeLabel(iso: string): string {
-  return new Date(iso).toLocaleString("it-IT", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function TeamSide({
   name,
@@ -146,7 +137,7 @@ export default async function MatchDetailPage({
 
       <Card className="flex flex-col gap-3">
         <p className="text-center text-xs capitalize text-muted-foreground">
-          {dateTimeLabel(match.kickoff_at)}
+          <LocalDateTime iso={match.kickoff_at} />
         </p>
         <div className="flex items-center gap-3">
           <TeamSide name={homeName} flag={match.home?.flag_url ?? null} align="left" />
