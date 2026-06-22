@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { MatchRow, type MatchRowData } from "@/components/matches/MatchRow";
+import { MatchesFilter } from "@/components/matches/MatchesFilter";
 import { createClient } from "@/lib/supabase/server";
 import {
   groupByDay,
@@ -133,27 +134,41 @@ export default async function MatchesPage() {
     matches.filter((m) => isMatchLocked(m.kickoff_at, now)),
   ).reverse();
 
+  const upcomingCount = upcomingGroups.reduce((n, g) => n + g.matches.length, 0);
+  const playedCount = playedGroups.reduce((n, g) => n + g.matches.length, 0);
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Pronostici</h1>
 
-      <div>
-        <h2 className="mb-3 text-lg font-bold">Partite da giocare</h2>
-        {upcomingGroups.length > 0 ? (
-          <DayGroups groups={upcomingGroups} predByMatch={predByMatch} now={now} />
-        ) : (
-          <Alert variant="info">
-            Nessuna partita aperta ai pronostici al momento.
-          </Alert>
-        )}
-      </div>
-
-      {playedGroups.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-lg font-bold">Partite giocate</h2>
-          <DayGroups groups={playedGroups} predByMatch={predByMatch} now={now} />
-        </div>
-      )}
+      <MatchesFilter
+        upcomingCount={upcomingCount}
+        playedCount={playedCount}
+        upcoming={
+          upcomingGroups.length > 0 ? (
+            <DayGroups
+              groups={upcomingGroups}
+              predByMatch={predByMatch}
+              now={now}
+            />
+          ) : (
+            <Alert variant="info">
+              Nessuna partita aperta ai pronostici al momento.
+            </Alert>
+          )
+        }
+        played={
+          playedGroups.length > 0 ? (
+            <DayGroups
+              groups={playedGroups}
+              predByMatch={predByMatch}
+              now={now}
+            />
+          ) : (
+            <Alert variant="info">Nessuna partita giocata.</Alert>
+          )
+        }
+      />
     </div>
   );
 }
