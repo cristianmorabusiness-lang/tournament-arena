@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
@@ -7,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { flagForCode } from "@/lib/nationalTeams";
 import { isMatchLocked } from "@/lib/matchday";
 import { LocalDateTime } from "@/components/LocalTime";
+import { formatLocale, type Locale } from "@/i18n/config";
 
 type MatchRow = {
   id: string;
@@ -48,7 +50,17 @@ function TeamSide({
   );
 }
 
-function PredLine({ p, you }: { p: PredRow; you: boolean }) {
+function PredLine({
+  p,
+  you,
+  youLabel,
+  userFallback,
+}: {
+  p: PredRow;
+  you: boolean;
+  youLabel: string;
+  userFallback: string;
+}) {
   return (
     <li
       className={`flex items-center justify-between px-5 py-3 ${you ? "bg-primary/10" : ""}`}
@@ -60,8 +72,8 @@ function PredLine({ p, you }: { p: PredRow; you: boolean }) {
           </span>
         )}
         <span className="font-medium">
-          @{p.profiles?.username ?? "utente"}
-          {you && <span className="ml-2 text-xs text-primary">(tu)</span>}
+          @{p.profiles?.username ?? userFallback}
+          {you && <span className="ml-2 text-xs text-primary">{youLabel}</span>}
         </span>
       </span>
       <span className="flex items-center gap-2">
@@ -71,6 +83,35 @@ function PredLine({ p, you }: { p: PredRow; you: boolean }) {
         {p.points !== null && <Badge tone="primary">{p.points} pt</Badge>}
       </span>
     </li>
+  );
+}
+
+function PredList({
+  mine,
+  others,
+  youLabel,
+  userFallback,
+}: {
+  mine: PredRow | null;
+  others: PredRow[];
+  youLabel: string;
+  userFallback: string;
+}) {
+  return (
+    <ul className="divide-y divide-border">
+      {mine && (
+        <PredLine p={mine} you youLabel={youLabel} userFallback={userFallback} />
+      )}
+      {others.map((p) => (
+        <PredLine
+          key={p.user_id}
+          p={p}
+          you={false}
+          youLabel={youLabel}
+          userFallback={userFallback}
+        />
+      ))}
+    </ul>
   );
 }
 
@@ -86,6 +127,10 @@ export default async function MatchDetailPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const t = await getTranslations("matchDetail");
+  const tc = await getTranslations("common");
+  const fmtLocale = formatLocale[(await getLocale()) as Locale];
+
   const { data: matchData } = await supabase
     .from("matches")
     .select(
@@ -99,9 +144,9 @@ export default async function MatchDetailPage({
     return (
       <div className="flex flex-col gap-4">
         <Link href="/matches" className="text-sm text-primary hover:underline">
-          ‹ Pronostici
+          {t("back")}
         </Link>
-        <Alert variant="info">Partita non trovata.</Alert>
+        <Alert variant="info">{t("notFound")}</Alert>
       </div>
     );
   }
@@ -132,12 +177,12 @@ export default async function MatchDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <Link href="/matches" className="text-sm text-primary hover:underline">
-        ‹ Pronostici
+        {t("back")}
       </Link>
 
       <Card className="flex flex-col gap-3">
         <p className="text-center text-xs capitalize text-muted-foreground">
-          <LocalDateTime iso={match.kickoff_at} />
+          <LocalDateTime iso={match.kickoff_at} locale={fmtLocale} />
         </p>
         <div className="flex items-center gap-3">
           <TeamSide name={homeName} flag={match.home?.flag_url ?? null} align="left" />
@@ -147,56 +192,53 @@ export default async function MatchDetailPage({
                 {match.home_score} - {match.away_score}
               </span>
             ) : (
-              <span className="text-sm font-medium text-muted-foreground">vs</span>
+              <span className="text-sm font-medium text-muted-foreground">{t("vs")}</span>
             )}
           </div>
           <TeamSide name={awayName} flag={match.away?.flag_url ?? null} align="right" />
         </div>
         <div className="flex justify-center">
           {isFinished ? (
-            <Badge tone="neutral">Conclusa</Badge>
+            <Badge tone="neutral">{t("finished")}</Badge>
           ) : locked ? (
-            <Badge tone="warning">Pronostici chiusi</Badge>
+            <Badge tone="warning">{t("closed")}</Badge>
           ) : (
-            <Badge tone="success">Pronostici aperti</Badge>
+            <Badge tone="success">{t("open")}</Badge>
           )}
         </div>
       </Card>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Pronostici</h2>
+        <h2 className="mb-3 text-lg font-semibold">{t("predictions")}</h2>
 
         {!locked ? (
           <div className="flex flex-col gap-3">
             {mine ? (
               <Card className="p-0">
                 <ul className="divide-y divide-border">
-                  <PredLine p={mine} you />
+                  <PredLine
+                    p={mine}
+                    you
+                    youLabel={tc("you")}
+                    userFallback={tc("user")}
+                  />
                 </ul>
               </Card>
             ) : (
-              <Alert variant="info">
-                Non hai ancora pronosticato questa partita.
-              </Alert>
+              <Alert variant="info">{t("notPredicted")}</Alert>
             )}
-            <p className="text-sm text-muted-foreground">
-              I pronostici degli altri membri delle tue leghe compariranno qui
-              alla chiusura (5 minuti prima del calcio d&apos;inizio).
-            </p>
+            <p className="text-sm text-muted-foreground">{t("othersAppear")}</p>
           </div>
         ) : others.length === 0 && !mine ? (
-          <Alert variant="info">
-            Nessun pronostico da mostrare. Compaiono i pronostici dei membri
-            delle tue leghe.
-          </Alert>
+          <Alert variant="info">{t("noPredictions")}</Alert>
         ) : (
           <Card className="p-0">
-            <ul className="divide-y divide-border">
-              {mine && <PredLine p={mine} you />}
-              {others.map((p) => (
-                <PredLine key={p.user_id} p={p} you={false} />
-              ))}
-            </ul>
+            <PredList
+              mine={mine}
+              others={others}
+              youLabel={tc("you")}
+              userFallback={tc("user")}
+            />
           </Card>
         )}
       </section>

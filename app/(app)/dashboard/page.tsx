@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { MatchRow, type MatchRowData } from "@/components/matches/MatchRow";
 import { createClient } from "@/lib/supabase/server";
+import { formatLocale, type Locale } from "@/i18n/config";
 import {
   dayKey,
   homeWindowDays,
@@ -35,9 +38,17 @@ type Pred = {
 };
 
 const SHORTCUTS = [
-  { href: "/matches", title: "Pronostici", desc: "Tutte le giornate" },
-  { href: "/leagues", title: "Le tue leghe", desc: "Crea o unisciti" },
-];
+  {
+    href: "/matches",
+    titleKey: "shortcutPredictions",
+    descKey: "shortcutPredictionsDesc",
+  },
+  {
+    href: "/leagues",
+    titleKey: "shortcutLeagues",
+    descKey: "shortcutLeaguesDesc",
+  },
+] as const;
 
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -51,14 +62,14 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-function dayLabel(date: string, today: string): string {
-  const formatted = new Date(`${date}T00:00:00Z`).toLocaleDateString("it-IT", {
+function dayLabel(date: string, today: string, locale: string, prefix: string): string {
+  const formatted = new Date(`${date}T00:00:00Z`).toLocaleDateString(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
     timeZone: "UTC",
   });
-  return date === today ? `Oggi · ${formatted}` : `Domani · ${formatted}`;
+  return `${prefix} · ${formatted}`;
 }
 
 function DaySection({
@@ -67,22 +78,28 @@ function DaySection({
   matches,
   predByMatch,
   now,
+  locale,
 }: {
   date: string;
   today: string;
   matches: Row[];
   predByMatch: Map<string, Pred>;
   now: Date;
+  locale: string;
 }) {
+  const t = useTranslations("dashboard");
   const missing = matches.filter(
     (m) => !isMatchLocked(m.kickoff_at, now) && !predByMatch.get(m.id),
   ).length;
+  const prefix = date === today ? t("today") : t("tomorrow");
 
   return (
     <section>
       <div className="mb-2 flex items-center gap-2">
-        <h2 className="font-semibold capitalize">{dayLabel(date, today)}</h2>
-        {missing > 0 && <Badge tone="warning">{missing} da fare</Badge>}
+        <h2 className="font-semibold capitalize">
+          {dayLabel(date, today, locale, prefix)}
+        </h2>
+        {missing > 0 && <Badge tone="warning">{t("toDo", { count: missing })}</Badge>}
       </div>
       <Card className="p-0">
         <div className="divide-y divide-border">
@@ -128,6 +145,9 @@ export default async function DashboardPage() {
   // Onboarding gate: must pick a favorite national team first.
   if (!profile?.favorite_country) redirect("/onboarding");
 
+  const t = await getTranslations("dashboard");
+  const fmtLocale = formatLocale[(await getLocale()) as Locale];
+
   const { data: matchData } = await supabase
     .from("matches")
     .select(
@@ -154,7 +174,7 @@ export default async function DashboardPage() {
   const stats = computePlayerStats(predictions, kickoffById);
   const bestDayValue = stats.bestDay ? `${stats.bestDay.points} pt` : "–";
   const bestDayHint = stats.bestDay
-    ? new Date(`${stats.bestDay.date}T00:00:00Z`).toLocaleDateString("it-IT", {
+    ? new Date(`${stats.bestDay.date}T00:00:00Z`).toLocaleDateString(fmtLocale, {
         day: "numeric",
         month: "short",
         timeZone: "UTC",
@@ -201,21 +221,21 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold">Ciao, @{profile.username} 👋</h1>
+        <h1 className="text-2xl font-bold">
+          {t("greeting", { username: profile.username })}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {missing > 0
-            ? `Hai ${missing} pronostic${missing > 1 ? "i" : "o"} da inserire tra oggi e domani.`
-            : "Sei in pari con i pronostici. Buona fortuna!"}
+          {missing > 0 ? t("missing", { count: missing }) : t("allCaught")}
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <StatTile label="Risultati esatti" value={String(stats.exact)} />
+        <StatTile label={t("statExact")} value={String(stats.exact)} />
         <StatTile
-          label="Media partita"
+          label={t("statAvg")}
           value={stats.scoredCount ? stats.avg.toFixed(1) : "–"}
         />
-        <StatTile label="Miglior giornata" value={bestDayValue} hint={bestDayHint} />
+        <StatTile label={t("statBestDay")} value={bestDayValue} hint={bestDayHint} />
       </div>
 
       {hasMatches ? (
@@ -227,6 +247,7 @@ export default async function DashboardPage() {
               matches={todayMatches}
               predByMatch={predByMatch}
               now={now}
+              locale={fmtLocale}
             />
           )}
           {tomorrowMatches.length > 0 && (
@@ -236,15 +257,15 @@ export default async function DashboardPage() {
               matches={tomorrowMatches}
               predByMatch={predByMatch}
               now={now}
+              locale={fmtLocale}
             />
           )}
         </div>
       ) : (
         <Alert variant="info">
-          Nessuna partita oggi o domani. I pronostici si aprono il giorno prima di
-          ogni partita —{" "}
+          {t("noMatchesBefore")}
           <Link href="/matches" className="font-medium text-primary hover:underline">
-            guarda il calendario →
+            {t("viewCalendar")}
           </Link>
         </Alert>
       )}
@@ -257,8 +278,8 @@ export default async function DashboardPage() {
         {SHORTCUTS.map((s) => (
           <Link key={s.href} href={s.href}>
             <Card className="h-full transition-colors hover:bg-surface-2">
-              <h2 className="font-semibold">{s.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{s.desc}</p>
+              <h2 className="font-semibold">{t(s.titleKey)}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t(s.descKey)}</p>
             </Card>
           </Link>
         ))}

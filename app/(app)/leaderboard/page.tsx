@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { RankDelta } from "@/components/RankDelta";
@@ -32,6 +33,9 @@ export default async function LeaderboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const t = await getTranslations("leaderboard");
+  const tc = await getTranslations("common");
+
   // Drive the leaderboard from `profiles` (the source of truth for every
   // registered user) and left-join the score, so newcomers appear immediately
   // at 0 pt instead of only after the next scoring run populates global_scores.
@@ -63,16 +67,12 @@ export default async function LeaderboardPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-bold">Classifica globale</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tutti i giocatori registrati, per punti totali da pronostico.
-        </p>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       {rows.length === 0 ? (
-        <Alert variant="info">
-          Nessun giocatore registrato per ora.
-        </Alert>
+        <Alert variant="info">{t("none")}</Alert>
       ) : (
         <Card className="p-0">
           <ul className="divide-y divide-border">
@@ -107,9 +107,9 @@ export default async function LeaderboardPage() {
                       </span>
                     )}
                     <span className="font-medium">
-                      @{r.username ?? "utente"}
+                      @{r.username ?? tc("user")}
                       {isMe && (
-                        <span className="ml-2 text-xs text-primary">(tu)</span>
+                        <span className="ml-2 text-xs text-primary">{tc("you")}</span>
                       )}
                     </span>
                     {r.rank != null && r.previous_rank != null && (

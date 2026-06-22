@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
@@ -8,6 +9,7 @@ import { RankDelta } from "@/components/RankDelta";
 import { createClient } from "@/lib/supabase/server";
 import { flagForCode } from "@/lib/nationalTeams";
 import { dayKey } from "@/lib/matchday";
+import { formatLocale, type Locale } from "@/i18n/config";
 import type { League, MemberRole, MemberStatus } from "@/lib/types";
 
 type DayMatch = {
@@ -40,6 +42,11 @@ export default async function LeagueDetailPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const t = await getTranslations("leagueDetail");
+  const tc = await getTranslations("common");
+  const userFallback = tc("user");
+  const fmtLocale = formatLocale[(await getLocale()) as Locale];
+
   const { data: league } = await supabase
     .from("leagues")
     .select("*")
@@ -48,12 +55,7 @@ export default async function LeagueDetailPage({
 
   // RLS hides leagues from non-approved users → treat as pending/not allowed.
   if (!league) {
-    return (
-      <Alert variant="info">
-        Non hai ancora accesso a questa lega. Se hai inviato una richiesta, attendi
-        l&apos;approvazione dell&apos;admin.
-      </Alert>
-    );
+    return <Alert variant="info">{t("noAccess")}</Alert>;
   }
 
   const isAdmin = league.admin_id === user.id;
@@ -67,11 +69,11 @@ export default async function LeagueDetailPage({
   const approved = members.filter((m) => m.status === "approved");
   const pending = members
     .filter((m) => m.status === "pending")
-    .map((m) => ({ id: m.id, username: m.profiles?.username ?? "utente" }));
+    .map((m) => ({ id: m.id, username: m.profiles?.username ?? userFallback }));
 
   // Standings: sum of daily total_points per member within this league.
   const usernameByUser = new Map(
-    approved.map((m) => [m.user_id, m.profiles?.username ?? "utente"]),
+    approved.map((m) => [m.user_id, m.profiles?.username ?? userFallback]),
   );
   const countryByUser = new Map(
     approved.map((m) => [m.user_id, m.profiles?.favorite_country ?? null]),
@@ -96,7 +98,7 @@ export default async function LeagueDetailPage({
         .filter((r) => r.match_date === latestDate)
         .map((r) => ({
           userId: r.user_id,
-          username: usernameByUser.get(r.user_id) ?? "utente",
+          username: usernameByUser.get(r.user_id) ?? userFallback,
           country: countryByUser.get(r.user_id) ?? null,
           points: r.total_points,
           base: r.base_points,
@@ -122,7 +124,7 @@ export default async function LeagueDetailPage({
     );
   }
   const boardDateLabel = latestDate
-    ? new Date(`${latestDate}T00:00:00Z`).toLocaleDateString("it-IT", {
+    ? new Date(`${latestDate}T00:00:00Z`).toLocaleDateString(fmtLocale, {
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -145,7 +147,7 @@ export default async function LeagueDetailPage({
   const standings = approved
     .map((m) => ({
       userId: m.user_id,
-      username: usernameByUser.get(m.user_id) ?? "utente",
+      username: usernameByUser.get(m.user_id) ?? userFallback,
       country: countryByUser.get(m.user_id) ?? null,
       points: totals.get(m.user_id) ?? 0,
     }))
@@ -157,14 +159,14 @@ export default async function LeagueDetailPage({
         <div>
           <h1 className="text-2xl font-bold">{league.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Codice lega:{" "}
+            {t("leagueCodeLabel")}{" "}
             <span className="font-semibold tabular-nums text-foreground">
               {league.join_code}
             </span>
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && <Badge tone="primary">Sei l&apos;admin</Badge>}
+          {isAdmin && <Badge tone="primary">{t("youAreAdmin")}</Badge>}
           <ShareInvite code={league.join_code} leagueName={league.name} />
         </div>
       </div>
@@ -172,7 +174,7 @@ export default async function LeagueDetailPage({
       {isAdmin && (
         <section>
           <h2 className="mb-3 text-lg font-semibold">
-            Richieste in attesa ({pending.length})
+            {t("pendingRequests", { count: pending.length })}
           </h2>
           <PendingRequests leagueId={league.id} members={pending} />
         </section>
@@ -180,15 +182,15 @@ export default async function LeagueDetailPage({
 
       {latestDate && (
         <section>
-          <h2 className="mb-1 text-lg font-semibold">Bacheca</h2>
+          <h2 className="mb-1 text-lg font-semibold">{t("board")}</h2>
           <p className="mb-3 text-sm capitalize text-muted-foreground">
-            Ultima giornata · {boardDateLabel}
+            {t("lastMatchday")} · {boardDateLabel}
           </p>
           <div className="grid gap-4 lg:grid-cols-2">
             {dayResults.length > 0 && (
               <Card className="p-0">
                 <p className="border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Risultati
+                  {t("results")}
                 </p>
                 <ul className="divide-y divide-border">
                   {dayResults.map((m) => (
@@ -221,7 +223,7 @@ export default async function LeagueDetailPage({
 
             <Card className="p-0">
               <p className="border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Punti di giornata
+                {t("dayPoints")}
               </p>
               <ul className="divide-y divide-border">
                 {dayBoard.map((d) => (
@@ -239,7 +241,7 @@ export default async function LeagueDetailPage({
                       )}
                       <span className="font-medium">@{d.username}</span>
                       {d.points === dayTop && dayTop > 0 && (
-                        <Badge tone="primary">Migliore</Badge>
+                        <Badge tone="primary">{t("best")}</Badge>
                       )}
                     </span>
                     <span className="flex flex-col items-end leading-tight">
@@ -248,7 +250,7 @@ export default async function LeagueDetailPage({
                       </span>
                       {d.bonus > 0 && (
                         <span className="text-[11px] text-muted-foreground">
-                          {d.base} + {d.bonus} bonus
+                          {t("bonus", { base: d.base, bonus: d.bonus })}
                         </span>
                       )}
                     </span>
@@ -261,7 +263,7 @@ export default async function LeagueDetailPage({
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Classifica della lega</h2>
+        <h2 className="mb-3 text-lg font-semibold">{t("standings")}</h2>
         <Card className="p-0">
           <ul className="divide-y divide-border">
             {standings.map((s, i) => (
@@ -297,7 +299,7 @@ export default async function LeagueDetailPage({
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">
-          Membri ({approved.length})
+          {t("members", { count: approved.length })}
         </h2>
         <Card className="p-0">
           <ul className="divide-y divide-border">
@@ -312,9 +314,9 @@ export default async function LeagueDetailPage({
                       {flagForCode(m.profiles?.favorite_country)}
                     </span>
                   )}
-                  @{m.profiles?.username ?? "utente"}
+                  @{m.profiles?.username ?? userFallback}
                 </span>
-                {m.role === "admin" && <Badge tone="primary">Admin</Badge>}
+                {m.role === "admin" && <Badge tone="primary">{t("admin")}</Badge>}
               </li>
             ))}
           </ul>

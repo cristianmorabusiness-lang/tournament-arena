@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { MatchRow, type MatchRowData } from "@/components/matches/MatchRow";
 import { MatchesFilter } from "@/components/matches/MatchesFilter";
 import { createClient } from "@/lib/supabase/server";
+import { formatLocale, type Locale } from "@/i18n/config";
 import {
   groupByDay,
   isMatchLocked,
@@ -27,8 +29,8 @@ type Pred = {
   points: number | null;
 };
 
-function dateLabel(date: string): string {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString("it-IT", {
+function dateLabel(date: string, locale: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -40,17 +42,19 @@ function DayGroups({
   groups,
   predByMatch,
   now,
+  locale,
 }: {
   groups: MatchDayGroup<Row>[];
   predByMatch: Map<string, Pred>;
   now: Date;
+  locale: string;
 }) {
   return (
     <div className="flex flex-col gap-5">
       {groups.map((group) => (
         <section key={group.date}>
           <h3 className="mb-2 font-semibold capitalize text-muted-foreground">
-            {dateLabel(group.date)}
+            {dateLabel(group.date, locale)}
           </h3>
           <Card className="p-0">
             <div className="divide-y divide-border">
@@ -93,6 +97,9 @@ export default async function MatchesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const t = await getTranslations("matches");
+  const fmtLocale = formatLocale[(await getLocale()) as Locale];
+
   const { data: matchData } = await supabase
     .from("matches")
     .select(
@@ -115,10 +122,9 @@ export default async function MatchesPage() {
   if (matches.length === 0) {
     return (
       <div>
-        <h1 className="mb-4 text-2xl font-bold">Pronostici</h1>
+        <h1 className="mb-4 text-2xl font-bold">{t("title")}</h1>
         <Alert variant="info">
-          Il calendario non è ancora stato sincronizzato. Esegui{" "}
-          <code>/api/sync</code> e ricarica.
+          {t.rich("notSynced", { code: (chunks) => <code>{chunks}</code> })}
         </Alert>
       </div>
     );
@@ -139,7 +145,7 @@ export default async function MatchesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Pronostici</h1>
+      <h1 className="text-2xl font-bold">{t("title")}</h1>
 
       <MatchesFilter
         upcomingCount={upcomingCount}
@@ -150,11 +156,10 @@ export default async function MatchesPage() {
               groups={upcomingGroups}
               predByMatch={predByMatch}
               now={now}
+              locale={fmtLocale}
             />
           ) : (
-            <Alert variant="info">
-              Nessuna partita aperta ai pronostici al momento.
-            </Alert>
+            <Alert variant="info">{t("noOpen")}</Alert>
           )
         }
         played={
@@ -163,9 +168,10 @@ export default async function MatchesPage() {
               groups={playedGroups}
               predByMatch={predByMatch}
               now={now}
+              locale={fmtLocale}
             />
           ) : (
-            <Alert variant="info">Nessuna partita giocata.</Alert>
+            <Alert variant="info">{t("noPlayed")}</Alert>
           )
         }
       />

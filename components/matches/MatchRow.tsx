@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { LocalTime } from "@/components/LocalTime";
 import { savePrediction, type PredictionState } from "@/lib/actions/predictions";
 import { LOCK_LEAD_MS, type MatchPhase } from "@/lib/matchday";
+import { formatLocale, type Locale } from "@/i18n/config";
 
 export type MatchRowData = {
   id: string;
@@ -24,20 +26,20 @@ export type MatchRowData = {
   points: number | null;
 };
 
-/** Human-readable reason for the points awarded on a finished match. */
-function pointsReason(
+/** Translation key for the points awarded on a finished match. */
+function pointsReasonKey(
   predHome: number,
   predAway: number,
   realHome: number,
   realAway: number,
-): string {
-  if (predHome === realHome && predAway === realAway) return "Risultato esatto · 5";
+): "exact" | "signDiff" | "signOnly" | "noPoints" {
+  if (predHome === realHome && predAway === realAway) return "exact";
   const signOk =
     Math.sign(predHome - predAway) === Math.sign(realHome - realAway);
   const diffOk = predHome - predAway === realHome - realAway;
-  if (signOk && diffOk) return "Segno + differenza · 3";
-  if (signOk) return "Segno corretto · 2";
-  return "Nessun punto";
+  if (signOk && diffOk) return "signDiff";
+  if (signOk) return "signOnly";
+  return "noPoints";
 }
 
 function TeamFlag({ src }: { src: string | null }) {
@@ -56,15 +58,17 @@ function TeamFlag({ src }: { src: string | null }) {
 
 function SaveButton() {
   const { pending } = useFormStatus();
+  const t = useTranslations("matchRow");
   return (
     <Button type="submit" disabled={pending} className="h-10 px-4 text-xs">
-      {pending ? "…" : "Salva"}
+      {pending ? t("saving") : t("save")}
     </Button>
   );
 }
 
 /** Live "closes in …" countdown until a match locks (kickoff − 5 min). */
 function LockCountdown({ kickoffAt }: { kickoffAt: string }) {
+  const t = useTranslations("matchRow");
   const lockAt = new Date(kickoffAt).getTime() - LOCK_LEAD_MS;
   const [now, setNow] = useState<number | null>(null);
 
@@ -92,7 +96,7 @@ function LockCountdown({ kickoffAt }: { kickoffAt: string }) {
       className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] tabular-nums ${
         urgent ? "text-secondary" : "text-muted-foreground"
       }`}
-      title="Tempo rimasto per pronosticare"
+      title={t("remainingTooltip")}
     >
       <svg viewBox="0 0 24 24" width={11} height={11} fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
         <circle cx="12" cy="12" r="9" />
@@ -111,6 +115,8 @@ export function MatchRow({
   /** "open" → editable form · "locked" → result/points · "upcoming" → not open yet. */
   phase: MatchPhase;
 }) {
+  const t = useTranslations("matchRow");
+  const locale = useLocale() as Locale;
   const [state, action] = useActionState<PredictionState, FormData>(
     savePrediction,
     undefined,
@@ -123,13 +129,14 @@ export function MatchRow({
       <div className="flex items-center gap-2 text-sm">
         <LocalTime
           iso={match.kickoffAt}
+          locale={formatLocale[locale]}
           className="tabular-nums text-muted-foreground"
         />
         <span className="flex items-center gap-1.5 font-medium">
           <TeamFlag src={match.homeFlag} />
           {match.homeName}
         </span>
-        <span className="text-muted-foreground">vs</span>
+        <span className="text-muted-foreground">{t("vs")}</span>
         <span className="flex items-center gap-1.5 font-medium">
           <TeamFlag src={match.awayFlag} />
           {match.awayName}
@@ -137,16 +144,16 @@ export function MatchRow({
         <Link
           href={`/matches/${match.id}`}
           className="ml-1 text-xs font-medium text-muted-foreground hover:text-primary"
-          aria-label="Dettagli partita e pronostici"
+          aria-label={t("detailsAria")}
         >
-          Dettagli ›
+          {t("details")}
         </Link>
       </div>
 
       <div className="flex items-center gap-3">
         {isFinished && (
           <span className="text-xs text-muted-foreground">
-            Risultato:{" "}
+            {t("result")}{" "}
             <span className="tabular-nums font-semibold text-foreground">
               {match.homeScore}-{match.awayScore}
             </span>
@@ -160,9 +167,9 @@ export function MatchRow({
                 {match.predHome ?? "–"} : {match.predAway ?? "–"}
               </span>
               {match.points !== null ? (
-                <Badge tone="primary">{match.points} pt</Badge>
+                <Badge tone="primary">{t("points", { points: match.points })}</Badge>
               ) : (
-                <Badge tone="neutral">Bloccato</Badge>
+                <Badge tone="neutral">{t("locked")}</Badge>
               )}
             </div>
             {isFinished &&
@@ -172,18 +179,20 @@ export function MatchRow({
               match.homeScore !== null &&
               match.awayScore !== null && (
                 <span className="text-[11px] text-muted-foreground">
-                  {pointsReason(
-                    match.predHome,
-                    match.predAway,
-                    match.homeScore,
-                    match.awayScore,
+                  {t(
+                    pointsReasonKey(
+                      match.predHome,
+                      match.predAway,
+                      match.homeScore,
+                      match.awayScore,
+                    ),
                   )}
                 </span>
               )}
           </div>
         ) : phase === "upcoming" ? (
-          <span title="I pronostici si aprono il giorno prima">
-            <Badge tone="neutral">Apre il giorno prima</Badge>
+          <span title={t("opensTooltip")}>
+            <Badge tone="neutral">{t("opensDayBefore")}</Badge>
           </span>
         ) : (
           <form action={action} className="flex items-center gap-2">
@@ -196,7 +205,7 @@ export function MatchRow({
               min={0}
               max={99}
               defaultValue={match.predHome ?? ""}
-              aria-label={`Gol ${match.homeName}`}
+              aria-label={t("goalsAria", { team: match.homeName })}
               className="h-10 w-12 rounded-lg border border-border bg-surface text-center text-sm outline-none focus:border-primary"
               required
             />
@@ -208,7 +217,7 @@ export function MatchRow({
               min={0}
               max={99}
               defaultValue={match.predAway ?? ""}
-              aria-label={`Gol ${match.awayName}`}
+              aria-label={t("goalsAria", { team: match.awayName })}
               className="h-10 w-12 rounded-lg border border-border bg-surface text-center text-sm outline-none focus:border-primary"
               required
             />

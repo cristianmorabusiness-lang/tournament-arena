@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/Card";
 import { PushToggle } from "@/components/PushToggle";
 import { UsernameForm } from "@/components/profile/UsernameForm";
@@ -7,8 +9,12 @@ import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
 import { flagForCode } from "@/lib/nationalTeams";
 import { computePlayerStats } from "@/lib/playerStats";
+import { formatLocale, type Locale } from "@/i18n/config";
 
-export const metadata = { title: "Profilo · Arena" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("profile");
+  return { title: t("metaTitle") };
+}
 
 function StatTile({
   label,
@@ -44,6 +50,9 @@ export default async function ProfilePage() {
     .single();
   if (!profile?.favorite_country) redirect("/onboarding");
 
+  const t = await getTranslations("profile");
+  const fmtLocale = formatLocale[(await getLocale()) as Locale];
+
   const { data: globalRow } = await supabase
     .from("global_scores")
     .select("total_points, rank")
@@ -74,7 +83,7 @@ export default async function ProfilePage() {
     scoredCount ? `${Math.round((n / scoredCount) * 100)}%` : "–";
 
   const bestDayLabel = stats.bestDay
-    ? `${stats.bestDay.points} pt · ${new Date(`${stats.bestDay.date}T00:00:00Z`).toLocaleDateString("it-IT", { day: "numeric", month: "short", timeZone: "UTC" })}`
+    ? `${stats.bestDay.points} pt · ${new Date(`${stats.bestDay.date}T00:00:00Z`).toLocaleDateString(fmtLocale, { day: "numeric", month: "short", timeZone: "UTC" })}`
     : "–";
 
   return (
@@ -90,35 +99,35 @@ export default async function ProfilePage() {
           <h1 className="text-2xl font-bold">@{profile.username}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {globalRow?.rank
-              ? `Posizione globale #${globalRow.rank}`
-              : "Non ancora in classifica"}
+              ? t("globalRank", { rank: globalRow.rank })
+              : t("notRanked")}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="Punti totali" value={String(totalPoints)} />
+        <StatTile label={t("totalPoints")} value={String(totalPoints)} />
         <StatTile
-          label="Pronostici"
+          label={t("predictions")}
           value={String(predictions.length)}
-          hint={`${scoredCount} valutati`}
+          hint={t("evaluated", { count: scoredCount })}
         />
         <StatTile
-          label="Risultati esatti"
+          label={t("exactResults")}
           value={String(stats.exact)}
           hint={pct(stats.exact)}
         />
         <StatTile
-          label="Segno corretto"
+          label={t("correctSign")}
           value={String(correctSign)}
           hint={pct(correctSign)}
         />
         <StatTile
-          label="Media a partita"
+          label={t("avgPerMatch")}
           value={scoredCount ? stats.avg.toFixed(1) : "–"}
-          hint="punti per pronostico valutato"
+          hint={t("perEvaluated")}
         />
-        <StatTile label="Miglior giornata" value={bestDayLabel} />
+        <StatTile label={t("bestDay")} value={bestDayLabel} />
       </div>
 
       <Card className="p-4">
@@ -133,10 +142,9 @@ export default async function ProfilePage() {
 
       {scoredCount === 0 && (
         <p className="text-sm text-muted-foreground">
-          Le statistiche si popolano man mano che le partite vengono giocate e i
-          punteggi calcolati.{" "}
+          {t("statsHint")}{" "}
           <Link href="/matches" className="font-medium text-primary hover:underline">
-            Inserisci i tuoi pronostici →
+            {t("enterPredictions")}
           </Link>
         </p>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import {
   savePushSubscription,
@@ -20,6 +21,8 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 type State = "loading" | "unsupported" | "off" | "on" | "denied";
 
 export function PushToggle({ vapidKey }: { vapidKey: string }) {
+  const t = useTranslations("profile");
+  const tc = useTranslations("common");
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,13 +78,13 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
       });
       if (!res.ok) {
         await sub.unsubscribe();
-        setError(res.error ?? "Errore");
+        setError(res.error ?? tc("error"));
         setState("off");
         return;
       }
       setState("on");
     } catch {
-      setError("Attivazione non riuscita.");
+      setError(t("enableFailed"));
       setState("off");
     } finally {
       setBusy(false);
@@ -93,9 +96,9 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
     setTestMsg(null);
     try {
       const res = await sendTestPush();
-      setTestMsg(res.ok ? "Inviata! Controlla le notifiche." : (res.error ?? "Errore"));
+      setTestMsg(res.ok ? t("testSent") : (res.error ?? tc("error")));
     } catch {
-      setTestMsg("Invio non riuscito.");
+      setTestMsg(t("sendFailed"));
     } finally {
       setBusy(false);
     }
@@ -113,7 +116,7 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
       }
       setState("off");
     } catch {
-      setError("Disattivazione non riuscita.");
+      setError(t("disableFailed"));
     } finally {
       setBusy(false);
     }
@@ -123,17 +126,15 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-medium">Promemoria pronostici</p>
-          <p className="text-sm text-muted-foreground">
-            Un avviso al giorno quando hai pronostici da inserire.
-          </p>
+          <p className="font-medium">{t("reminders")}</p>
+          <p className="text-sm text-muted-foreground">{t("remindersDesc")}</p>
         </div>
         {state === "loading" && (
           <span className="text-sm text-muted-foreground">…</span>
         )}
         {state === "off" && (
           <Button onClick={enable} disabled={busy} className="h-9 px-4 text-xs">
-            {busy ? "…" : "Attiva"}
+            {busy ? "…" : t("enable")}
           </Button>
         )}
         {state === "on" && (
@@ -143,7 +144,7 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
             disabled={busy}
             className="h-9 px-4 text-xs"
           >
-            {busy ? "…" : "Attive ✓"}
+            {busy ? "…" : t("on")}
           </Button>
         )}
       </div>
@@ -156,7 +157,7 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
             disabled={busy}
             className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
           >
-            Invia notifica di prova
+            {t("sendTest")}
           </button>
           {testMsg && (
             <span className="text-xs text-muted-foreground">{testMsg}</span>
@@ -165,16 +166,10 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
       )}
 
       {state === "denied" && (
-        <p className="text-sm text-muted-foreground">
-          Le notifiche sono bloccate nel browser. Abilitale dalle impostazioni
-          del sito per ricevere i promemoria.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("denied")}</p>
       )}
       {state === "unsupported" && (
-        <p className="text-sm text-muted-foreground">
-          Questo browser non supporta le notifiche push. Su iPhone, aggiungi
-          prima l&apos;app alla schermata Home.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("unsupported")}</p>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>

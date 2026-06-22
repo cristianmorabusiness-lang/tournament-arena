@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 
 export function ShareInvite({
@@ -10,12 +11,13 @@ export function ShareInvite({
   code: string;
   leagueName: string;
 }) {
+  const t = useTranslations("leagueDetail");
   const [copied, setCopied] = useState(false);
 
   async function share() {
     const url =
       typeof window !== "undefined" ? `${window.location.origin}/leagues` : "";
-    const text = `Unisciti alla mia lega «${leagueName}» su Arena! Inserisci il codice ${code} nella sezione Leghe.`;
+    const text = t("shareText", { name: leagueName, code });
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
@@ -47,7 +49,7 @@ export function ShareInvite({
         <circle cx="18" cy="19" r="3" />
         <path d="m8.6 13.5 6.8 4M15.4 6.5 8.6 10.5" />
       </svg>
-      {copied ? "Copiato!" : "Invita"}
+      {copied ? t("copied") : t("invite")}
     </Button>
   );
 }

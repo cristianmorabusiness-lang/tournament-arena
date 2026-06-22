@@ -2,19 +2,21 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { updateUsername, type UsernameState } from "@/lib/actions/auth";
 
-function SaveButton({ disabled }: { disabled: boolean }) {
+function SaveButton({ disabled, label }: { disabled: boolean; label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending || disabled} className="h-11 px-4 text-sm">
-      {pending ? "…" : "Salva"}
+      {pending ? "…" : label}
     </Button>
   );
 }
 
 export function UsernameForm({ current }: { current: string }) {
+  const t = useTranslations("profile");
   const [state, action] = useActionState<UsernameState, FormData>(
     updateUsername,
     undefined,
@@ -28,7 +30,7 @@ export function UsernameForm({ current }: { current: string }) {
   return (
     <form action={action} className="flex flex-col gap-2">
       <label htmlFor="username" className="font-medium">
-        Username
+        {t("usernameLabel")}
       </label>
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">@</span>
@@ -41,16 +43,14 @@ export function UsernameForm({ current }: { current: string }) {
           maxLength={24}
           pattern="[a-zA-Z0-9_]+"
           required
-          aria-label="Username"
+          aria-label={t("usernameLabel")}
           className="h-11 flex-1 rounded-xl border border-border bg-surface px-3.5 text-sm outline-none transition-colors focus:border-primary"
         />
-        <SaveButton disabled={unchanged} />
+        <SaveButton disabled={unchanged} label={t("save")} />
       </div>
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {saved && <p className="text-sm text-success">Username aggiornato ✓</p>}
-      <p className="text-xs text-muted-foreground">
-        3–24 caratteri: lettere, numeri e underscore. Dev&apos;essere unico.
-      </p>
+      {saved && <p className="text-sm text-success">{t("usernameUpdated")}</p>}
+      <p className="text-xs text-muted-foreground">{t("usernameHint")}</p>
     </form>
   );
 }

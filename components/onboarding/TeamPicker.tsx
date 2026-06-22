@@ -2,21 +2,31 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { setFavoriteTeam, type OnboardingState } from "@/lib/actions/onboarding";
 import { NATIONAL_TEAMS, teamByCode } from "@/lib/nationalTeams";
 
-function Submit({ disabled }: { disabled: boolean }) {
+function Submit({
+  disabled,
+  label,
+  savingLabel,
+}: {
+  disabled: boolean;
+  label: string;
+  savingLabel: string;
+}) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={disabled || pending} className="w-full sm:w-auto">
-      {pending ? "Salvataggio…" : "Conferma nazionale"}
+      {pending ? savingLabel : label}
     </Button>
   );
 }
 
 export function TeamPicker() {
+  const t = useTranslations("onboarding");
   const [state, formAction] = useActionState<OnboardingState, FormData>(
     setFavoriteTeam,
     undefined,
@@ -44,27 +54,31 @@ export function TeamPicker() {
             {selectedTeam ? selectedTeam.flag : "🏳️"}
           </span>
           <div>
-            <p className="text-xs text-muted-foreground">La tua nazionale</p>
+            <p className="text-xs text-muted-foreground">{t("yourTeam")}</p>
             <p className="font-semibold">
-              {selectedTeam ? selectedTeam.name : "Nessuna selezione"}
+              {selectedTeam ? selectedTeam.name : t("noSelection")}
             </p>
           </div>
         </div>
-        <Submit disabled={!selected} />
+        <Submit
+          disabled={!selected}
+          label={t("confirm")}
+          savingLabel={t("saving")}
+        />
       </div>
 
       <input
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Cerca la tua nazionale…"
-        aria-label="Cerca nazionale"
+        placeholder={t("search")}
+        aria-label={t("searchAria")}
         className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/40"
       />
 
       <div
         role="radiogroup"
-        aria-label="Scegli la tua nazionale del cuore"
+        aria-label={t("chooseAria")}
         className="grid max-h-[50vh] grid-cols-2 gap-3 overflow-y-auto p-1 sm:grid-cols-3 md:grid-cols-4"
       >
         {filtered.map((team) => {
@@ -105,7 +119,7 @@ export function TeamPicker() {
         })}
         {filtered.length === 0 && (
           <p className="col-span-full py-6 text-center text-sm text-muted-foreground">
-            Nessuna nazionale trovata per “{query}”.
+            {t("noneFound", { query })}
           </p>
         )}
       </div>

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -43,6 +44,7 @@ export function PendingRequests({
   leagueId: string;
   members: PendingMember[];
 }) {
+  const t = useTranslations("leagueDetail");
   const [state, action] = useActionState<MemberActionState, FormData>(
     updateMemberStatus,
     undefined,
@@ -51,9 +53,7 @@ export function PendingRequests({
   if (members.length === 0) {
     return (
       <Card>
-        <p className="text-sm text-muted-foreground">
-          Nessuna richiesta in attesa.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("noPending")}</p>
       </Card>
     );
   }
@@ -69,8 +69,8 @@ export function PendingRequests({
               <form action={action} className="flex gap-2">
                 <input type="hidden" name="memberId" value={m.id} />
                 <input type="hidden" name="leagueId" value={leagueId} />
-                <ActionButton status="approved" label="Approva" variant="primary" />
-                <ActionButton status="rejected" label="Rifiuta" variant="danger" />
+                <ActionButton status="approved" label={t("approve")} variant="primary" />
+                <ActionButton status="rejected" label={t("reject")} variant="danger" />
               </form>
             </li>
           ))}

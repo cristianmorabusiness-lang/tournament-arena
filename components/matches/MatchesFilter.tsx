@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 type Tab = "upcoming" | "played";
 
@@ -15,6 +16,7 @@ export function MatchesFilter({
   upcoming: ReactNode;
   played: ReactNode;
 }) {
+  const t = useTranslations("matches");
   // Default to whichever section has matches, preferring "da giocare".
   const [tab, setTab] = useState<Tab>(
     upcomingCount === 0 && playedCount > 0 ? "played" : "upcoming",
@@ -31,7 +33,7 @@ export function MatchesFilter({
     <div className="flex flex-col gap-6">
       <div
         role="tablist"
-        aria-label="Filtra partite"
+        aria-label={t("filterAria")}
         className="flex gap-1 rounded-xl border border-border bg-surface-2 p-1"
       >
         <button
@@ -41,7 +43,7 @@ export function MatchesFilter({
           onClick={() => setTab("upcoming")}
           className={tabClass(tab === "upcoming")}
         >
-          Da giocare
+          {t("filterUpcoming")}
           <span className="tabular-nums opacity-70">{upcomingCount}</span>
         </button>
         <button
@@ -51,7 +53,7 @@ export function MatchesFilter({
           onClick={() => setTab("played")}
           className={tabClass(tab === "played")}
         >
-          Giocate
+          {t("filterPlayed")}
           <span className="tabular-nums opacity-70">{playedCount}</span>
         </button>
       </div>

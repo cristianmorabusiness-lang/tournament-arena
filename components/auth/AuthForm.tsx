@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -9,11 +10,11 @@ import type { AuthState } from "@/lib/actions/auth";
 
 type Action = (state: AuthState, formData: FormData) => Promise<AuthState>;
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({ label, waitLabel }: { label: string; waitLabel: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Attendi…" : label}
+      {pending ? waitLabel : label}
     </Button>
   );
 }
@@ -25,6 +26,7 @@ export function AuthForm({
   mode: "login" | "signup";
   action: Action;
 }) {
+  const t = useTranslations("auth");
   const [state, formAction] = useActionState<AuthState, FormData>(
     action,
     undefined,
@@ -37,37 +39,40 @@ export function AuthForm({
 
       {isSignup && (
         <Field
-          label="Username"
+          label={t("username")}
           name="username"
           type="text"
           autoComplete="username"
           required
-          placeholder="il_tuo_nome"
-          hint="3-24 caratteri: lettere, numeri, underscore."
+          placeholder={t("usernamePlaceholder")}
+          hint={t("usernameHint")}
         />
       )}
 
       <Field
-        label="Email"
+        label={t("email")}
         name="email"
         type="email"
         autoComplete="email"
         inputMode="email"
         required
-        placeholder="tu@esempio.com"
+        placeholder={t("emailPlaceholder")}
       />
 
       <Field
-        label="Password"
+        label={t("password")}
         name="password"
         type="password"
         autoComplete={isSignup ? "new-password" : "current-password"}
         required
         placeholder="••••••••"
-        hint={isSignup ? "Almeno 8 caratteri." : undefined}
+        hint={isSignup ? t("passwordHint") : undefined}
       />
 
-      <SubmitButton label={isSignup ? "Crea account" : "Accedi"} />
+      <SubmitButton
+        label={isSignup ? t("createAccount") : t("signIn")}
+        waitLabel={t("wait")}
+      />
     </form>
   );
 }

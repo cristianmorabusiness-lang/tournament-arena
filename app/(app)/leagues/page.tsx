@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { LeagueForms } from "@/components/leagues/LeagueForms";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -18,10 +19,10 @@ const STATUS_TONE = {
   rejected: "danger",
 } as const;
 
-const STATUS_LABEL = {
-  approved: "Approvato",
-  pending: "In attesa",
-  rejected: "Rifiutato",
+const STATUS_KEY = {
+  approved: "statusApproved",
+  pending: "statusPending",
+  rejected: "statusRejected",
 } as const;
 
 export default async function LeaguesPage() {
@@ -30,6 +31,8 @@ export default async function LeaguesPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const t = await getTranslations("leagues");
 
   const { data } = await supabase
     .from("league_members")
@@ -42,21 +45,17 @@ export default async function LeaguesPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold">Le tue leghe</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Crea una lega o richiedi di unirti a una esistente.
-        </p>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       <LeagueForms />
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Iscrizioni</h2>
+        <h2 className="mb-3 text-lg font-semibold">{t("memberships")}</h2>
         {memberships.length === 0 ? (
           <Card>
-            <p className="text-sm text-muted-foreground">
-              Non fai ancora parte di nessuna lega.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("noneYet")}</p>
           </Card>
         ) : (
           <ul className="flex flex-col gap-3">
@@ -68,12 +67,12 @@ export default async function LeaguesPage() {
                       <div>
                         <p className="font-semibold">{m.leagues.name}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {m.role === "admin" ? "Admin" : "Membro"} · codice{" "}
+                          {m.role === "admin" ? t("admin") : t("member")} · {t("code")}{" "}
                           <span className="tabular-nums">{m.leagues.join_code}</span>
                         </p>
                       </div>
                       <Badge tone={STATUS_TONE[m.status]}>
-                        {STATUS_LABEL[m.status]}
+                        {t(STATUS_KEY[m.status])}
                       </Badge>
                     </Card>
                   </Link>

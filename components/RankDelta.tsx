@@ -5,13 +5,18 @@
  * zero delta renders nothing. Colour is paired with an arrow + sign so the
  * meaning never relies on colour alone.
  */
+"use client";
+
+import { useTranslations } from "next-intl";
+
 export function RankDelta({ delta }: { delta: number | null | undefined }) {
+  const t = useTranslations("common");
   if (!delta) return null;
 
   const up = delta > 0;
   const label = up
-    ? `Salito di ${delta} posizioni`
-    : `Sceso di ${Math.abs(delta)} posizioni`;
+    ? t("rankUp", { n: delta })
+    : t("rankDown", { n: Math.abs(delta) });
 
   return (
     <span

@@ -3,17 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { signout } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 
-type NavItem = { href: string; label: string; icon: React.ReactNode };
+type NavItem = { href: string; key: string; icon: React.ReactNode };
 
 const ICON = "size-5 shrink-0";
 
 const NAV: NavItem[] = [
   {
     href: "/dashboard",
-    label: "Home",
+    key: "home",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON} aria-hidden>
         <path d="M3 10.5 12 3l9 7.5" />
@@ -23,7 +25,7 @@ const NAV: NavItem[] = [
   },
   {
     href: "/matches",
-    label: "Pronostici",
+    key: "predictions",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON} aria-hidden>
         <path d="M4 7h16v4a2 2 0 0 0 0 4v2H4v-2a2 2 0 0 0 0-4z" />
@@ -33,7 +35,7 @@ const NAV: NavItem[] = [
   },
   {
     href: "/leagues",
-    label: "Leghe",
+    key: "leagues",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON} aria-hidden>
         <circle cx="9" cy="8" r="3" />
@@ -44,7 +46,7 @@ const NAV: NavItem[] = [
   },
   {
     href: "/leaderboard",
-    label: "Classifica",
+    key: "leaderboard",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON} aria-hidden>
         <path d="M6 4h12v4a6 6 0 0 1-12 0z" />
@@ -55,7 +57,7 @@ const NAV: NavItem[] = [
   },
   {
     href: "/profile",
-    label: "Profilo",
+    key: "profile",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON} aria-hidden>
         <circle cx="12" cy="8" r="3.5" />
@@ -65,7 +67,7 @@ const NAV: NavItem[] = [
   },
   {
     href: "/rules",
-    label: "Regole",
+    key: "rules",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON} aria-hidden>
         <circle cx="12" cy="12" r="9" />
@@ -92,6 +94,7 @@ const Logo = ({ className = "" }: { className?: string }) => (
 
 export function AppHeader({ username }: { username?: string }) {
   const pathname = usePathname();
+  const t = useTranslations("nav");
   const [open, setOpen] = useState(false);
 
   // Close on Escape and lock scroll while the full-screen menu is open.
@@ -130,7 +133,7 @@ export function AppHeader({ username }: { username?: string }) {
                       : "text-muted-foreground hover:bg-surface-2 hover:text-foreground"
                   }`}
                 >
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               );
             })}
@@ -142,9 +145,10 @@ export function AppHeader({ username }: { username?: string }) {
                 @{username}
               </span>
             )}
+            <LocaleSwitcher className="hidden sm:inline-flex" />
             <form action={signout} className="hidden sm:block">
               <Button variant="secondary" className="h-9 px-3 text-xs">
-                Esci
+                {t("signOut")}
               </Button>
             </form>
 
@@ -152,7 +156,7 @@ export function AppHeader({ username }: { username?: string }) {
             <button
               type="button"
               onClick={() => setOpen(true)}
-              aria-label="Apri menu"
+              aria-label={t("openMenu")}
               aria-expanded={open}
               className="-mr-1 inline-flex size-11 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-2 sm:hidden"
             >
@@ -169,7 +173,7 @@ export function AppHeader({ username }: { username?: string }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Menu"
+        aria-label={t("menu")}
         aria-hidden={!open}
         className={`fixed inset-0 z-50 flex flex-col bg-background transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:hidden ${
           open
@@ -188,7 +192,7 @@ export function AppHeader({ username }: { username?: string }) {
           <button
             type="button"
             onClick={() => setOpen(false)}
-            aria-label="Chiudi menu"
+            aria-label={t("closeMenu")}
             className="-mr-1 inline-flex size-11 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-2"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-6" aria-hidden>
@@ -219,7 +223,7 @@ export function AppHeader({ username }: { username?: string }) {
                 >
                   {item.icon}
                 </span>
-                {item.label}
+                {t(item.key)}
               </Link>
             );
           })}
@@ -228,13 +232,16 @@ export function AppHeader({ username }: { username?: string }) {
         <div className="relative border-t border-border p-4">
           {username && (
             <p className="mb-3 px-1 text-sm text-muted-foreground">
-              Connesso come{" "}
+              {t("connectedAs")}{" "}
               <span className="font-medium text-foreground">@{username}</span>
             </p>
           )}
+          <div className="mb-3">
+            <LocaleSwitcher className="w-full [&>select]:w-full" />
+          </div>
           <form action={signout}>
             <Button variant="danger" className="h-12 w-full text-base">
-              Esci
+              {t("signOut")}
             </Button>
           </form>
         </div>
